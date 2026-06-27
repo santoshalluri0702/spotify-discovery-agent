@@ -25,7 +25,7 @@ try:
 except ImportError:
     pass
 
-app = FastAPI(title="Spotify AI Onboarding Agent", version="1.0.0")
+app = FastAPI(title="Spotify AI Discovery Agent", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -307,6 +307,6 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    print("\n  Spotify AI Onboarding Agent")
+    print("\n  Spotify AI Discovery Agent")
     print("   Starting server at http://localhost:8000\n")
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
