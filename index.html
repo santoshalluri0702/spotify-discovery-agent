@@ -5,554 +5,868 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Spotify AI Discovery Agent</title>
 <style>
-  :root {
-    --green: #1DB954;
-    --green-hover: #1ed760;
-    --bg: #121212;
-    --surface: #1e1e1e;
-    --surface2: #282828;
-    --text: #FFFFFF;
-    --text-muted: #b3b3b3;
-    --bubble-user: #1DB954;
-    --bubble-agent: #282828;
-    --border: #333;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Circular', 'Helvetica Neue', Arial, sans-serif;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  /* ── Header ── */
-  header {
-    width: 100%;
-    background: #000;
-    padding: 14px 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    border-bottom: 1px solid var(--border);
-  }
-  .spotify-logo {
-    width: 28px; height: 28px;
-    fill: var(--green);
-  }
-  header h1 {
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: -0.2px;
-  }
-  header span {
-    font-size: 13px;
-    color: var(--text-muted);
-    margin-left: auto;
-  }
-
-  /* ── Mode selector screen ── */
-  #mode-screen {
-    max-width: 560px;
-    width: 100%;
-    padding: 48px 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-  }
-  .mode-intro h2 {
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1.2;
-    margin-bottom: 10px;
-  }
-  .mode-intro p {
-    color: var(--text-muted);
-    font-size: 15px;
-    line-height: 1.6;
-  }
-  .mode-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .mode-card {
-    background: var(--surface2);
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    padding: 20px;
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .mode-card:hover {
-    border-color: var(--green);
-    background: #2a2a2a;
-  }
-  .mode-card .mode-title {
-    font-size: 16px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .mode-card .mode-icon {
-    font-size: 20px;
-  }
-  .mode-card .mode-desc {
-    font-size: 13px;
-    color: var(--text-muted);
-    line-height: 1.5;
-  }
-  .mode-card .mode-badge {
-    font-size: 11px;
-    color: var(--green);
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-  }
-
-  /* ── Chat screen ── */
-  #chat-screen {
-    display: none;
-    flex-direction: column;
-    width: 100%;
-    max-width: 680px;
-    height: calc(100vh - 57px);
-  }
-
-  /* Progress bar */
-  #progress-wrap {
-    padding: 12px 20px 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  #progress-label {
-    font-size: 12px;
-    color: var(--text-muted);
-    font-weight: 600;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-  }
-  #progress-bar-track {
-    background: var(--border);
-    border-radius: 4px;
-    height: 4px;
-    width: 100%;
-  }
-  #progress-bar-fill {
-    background: var(--green);
-    height: 4px;
-    border-radius: 4px;
-    width: 0%;
-    transition: width 0.4s ease;
-  }
-
-  /* Messages */
-  #messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    scroll-behavior: smooth;
-  }
-  #messages::-webkit-scrollbar { width: 6px; }
-  #messages::-webkit-scrollbar-track { background: transparent; }
-  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  .message {
-    display: flex;
-    gap: 10px;
-    align-items: flex-end;
-    max-width: 85%;
-  }
-  .message.agent { align-self: flex-start; }
-  .message.user  { align-self: flex-end; flex-direction: row-reverse; }
-
-  .avatar {
-    width: 32px; height: 32px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 700;
-  }
-  .avatar.agent-avatar { background: var(--green); color: #000; }
-  .avatar.user-avatar  { background: var(--surface2); color: var(--text); font-size: 12px; }
-
-  .bubble {
-    padding: 12px 16px;
-    border-radius: 18px;
-    font-size: 14px;
-    line-height: 1.6;
-    white-space: pre-wrap;
-  }
-  .agent .bubble {
-    background: var(--bubble-agent);
-    border-bottom-left-radius: 4px;
-    color: var(--text);
-  }
-  .user .bubble {
-    background: var(--bubble-user);
-    border-bottom-right-radius: 4px;
-    color: #000;
-    font-weight: 500;
-  }
-
-  /* Markdown-like rendering in agent bubble */
-  .agent .bubble h2 { font-size: 15px; margin: 10px 0 6px; color: var(--green); }
-  .agent .bubble h3 { font-size: 14px; margin: 8px 0 4px; color: var(--text-muted); }
-  .agent .bubble strong { color: var(--green); }
-  .agent .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
-  .agent .bubble em { color: var(--text-muted); font-style: italic; }
-  .agent .bubble blockquote {
-    border-left: 3px solid var(--green);
-    padding-left: 10px;
-    color: var(--text-muted);
-    margin: 6px 0;
-  }
-
-  /* Typing indicator */
-  .typing-indicator { display: flex; gap: 4px; padding: 14px 16px; }
-  .typing-indicator span {
-    width: 6px; height: 6px;
-    background: var(--text-muted);
-    border-radius: 50%;
-    animation: bounce 1.2s infinite ease-in-out;
-  }
-  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes bounce {
-    0%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-6px); }
-  }
-
-  /* Input area */
-  #input-area {
-    padding: 12px 20px 20px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    gap: 10px;
-    background: var(--bg);
-  }
-  #user-input {
-    flex: 1;
-    background: var(--surface2);
-    border: 1.5px solid var(--border);
-    border-radius: 24px;
-    padding: 12px 18px;
-    color: var(--text);
-    font-size: 14px;
-    outline: none;
-    resize: none;
-    min-height: 44px;
-    max-height: 120px;
-    line-height: 1.5;
-    font-family: inherit;
-    transition: border-color 0.15s;
-  }
-  #user-input:focus { border-color: var(--green); }
-  #user-input::placeholder { color: var(--text-muted); }
-  #send-btn {
-    width: 44px; height: 44px;
-    background: var(--green);
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s, transform 0.1s;
-    flex-shrink: 0;
-    align-self: flex-end;
-  }
-  #send-btn:hover { background: var(--green-hover); }
-  #send-btn:active { transform: scale(0.94); }
-  #send-btn svg { fill: #000; width: 18px; height: 18px; }
-  #send-btn:disabled { background: var(--border); cursor: not-allowed; }
-
-  #restart-btn {
-    margin: 0 20px 16px;
-    background: transparent;
-    border: 1.5px solid var(--border);
-    border-radius: 24px;
-    padding: 10px 20px;
-    color: var(--text-muted);
-    font-size: 13px;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-    font-family: inherit;
-    display: none;
-  }
-  #restart-btn:hover { border-color: var(--green); color: var(--green); }
-
-  /* Mobile */
-  @media (max-width: 600px) {
-    .mode-intro h2 { font-size: 22px; }
-    #mode-screen { padding: 32px 16px; }
-    #messages { padding: 16px; }
-    #input-area { padding: 10px 16px 16px; }
-    .message { max-width: 92%; }
-  }
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#1DB954;--green-h:#1ed760;
+  --bg:#121212;--sidebar:#000;
+  --s1:#1e1e1e;--s2:#282828;--s3:#333;
+  --text:#fff;--muted:#b3b3b3;
+}
+body{background:var(--bg);color:var(--text);font-family:'Circular','Helvetica Neue',Arial,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+/* ── LAYOUT ── */
+.app{display:flex;flex:1;overflow:hidden;min-height:0}
+/* ── SIDEBAR ── */
+#sidebar{width:240px;background:var(--sidebar);display:flex;flex-direction:column;gap:8px;padding:8px;flex-shrink:0;overflow:hidden}
+.logo{display:flex;align-items:center;gap:10px;padding:14px 12px 10px}
+.logo svg{width:32px;height:32px;fill:var(--text);flex-shrink:0}
+.logo span{font-size:15px;font-weight:700}
+.nav-links{display:flex;flex-direction:column;gap:2px}
+.nav-link{display:flex;align-items:center;gap:14px;padding:10px 12px;border-radius:6px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;transition:color .1s;user-select:none}
+.nav-link:hover,.nav-link.active{color:var(--text)}
+.nav-link svg{width:20px;height:20px;flex-shrink:0;fill:currentColor}
+.library-box{background:var(--s1);border-radius:8px;flex:1;padding:8px;overflow-y:auto;min-height:0}
+.library-box::-webkit-scrollbar{width:4px}
+.library-box::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+.lib-head{padding:8px 8px 10px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.lib-item{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:6px;cursor:pointer;transition:background .1s}
+.lib-item:hover{background:var(--s2)}
+.lib-art{width:40px;height:40px;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px}
+.lib-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lib-meta{font-size:11px;color:var(--muted);margin-top:1px}
+/* ── MAIN ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#topbar{height:64px;display:flex;align-items:center;gap:12px;padding:0 24px;background:rgba(18,18,18,.95);backdrop-filter:blur(10px);flex-shrink:0;z-index:10;position:relative}
+.nav-arrows{display:flex;gap:6px}
+.nav-arrow{width:32px;height:32px;background:rgba(0,0,0,.7);border:none;border-radius:50%;color:var(--text);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.nav-arrow:hover{background:rgba(255,255,255,.1)}
+.searchbar{flex:1;max-width:360px;display:flex;align-items:center;gap:8px;background:var(--s2);border-radius:20px;padding:8px 14px;border:1.5px solid transparent;transition:border-color .15s}
+.searchbar:focus-within{border-color:var(--text)}
+.searchbar svg{fill:var(--muted);width:16px;height:16px;flex-shrink:0}
+.searchbar input{background:none;border:none;color:var(--text);font-size:14px;outline:none;width:100%;font-family:inherit}
+.searchbar input::placeholder{color:var(--muted)}
+.topbar-right{margin-left:auto;position:relative;display:flex;align-items:center}
+#profile-trigger{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.5);border-radius:24px;padding:4px 12px 4px 4px;cursor:pointer;user-select:none}
+#profile-trigger:hover{background:rgba(0,0,0,.7)}
+.p-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+#p-name{font-size:13px;font-weight:700}
+.caret{color:var(--muted);font-size:11px}
+/* profile dropdown */
+#pdrop{position:absolute;top:calc(100% + 8px);right:0;background:var(--s2);border-radius:8px;padding:4px;min-width:230px;box-shadow:0 8px 32px rgba(0,0,0,.6);z-index:200;display:none}
+#pdrop.open{display:block}
+.pdrop-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:6px;cursor:pointer;transition:background .1s}
+.pdrop-item:hover{background:rgba(255,255,255,.1)}
+.pd-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+.pd-name{font-size:13px;font-weight:700}
+.pd-label{font-size:11px;color:var(--muted);margin-top:1px}
+.pd-check{color:var(--green);font-size:16px;margin-left:auto;display:none}
+/* ── CONTENT ── */
+#content{flex:1;overflow-y:auto;padding:0 24px 100px;scroll-behavior:smooth}
+#content::-webkit-scrollbar{width:6px}
+#content::-webkit-scrollbar-thumb{background:#535353;border-radius:3px}
+/* empty state */
+#empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:70vh;gap:20px;text-align:center}
+#empty-state .big-icon{font-size:72px}
+#empty-state h2{font-size:26px;font-weight:700}
+#empty-state p{color:var(--muted);max-width:400px;line-height:1.6;font-size:15px}
+/* hero */
+.hero{height:260px;border-radius:12px;margin:16px 0 24px;padding:28px 32px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden}
+.hero-bg{position:absolute;inset:0;border-radius:12px}
+.hero-inner{position:relative;z-index:1}
+.hero-tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--green);margin-bottom:6px}
+.hero-title{font-size:32px;font-weight:900;line-height:1.15;margin-bottom:6px;white-space:pre-line}
+.hero-sub{font-size:14px;color:rgba(255,255,255,.8);margin-bottom:18px;max-width:460px;line-height:1.5}
+.hero-btns{display:flex;gap:10px;align-items:center}
+.btn-g{background:var(--green);color:#000;border:none;border-radius:24px;padding:11px 26px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s,transform .1s}
+.btn-g:hover{background:var(--green-h);transform:scale(1.02)}
+.btn-o{background:transparent;color:var(--text);border:1.5px solid rgba(255,255,255,.45);border-radius:24px;padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:border-color .15s}
+.btn-o:hover{border-color:var(--text)}
+/* section */
+.section{margin-bottom:30px}
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sec-title{font-size:20px;font-weight:700}
+.sec-link{font-size:12px;color:var(--muted);font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.5px}
+.sec-link:hover{color:var(--text);text-decoration:underline}
+/* card grid */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:14px}
+.card{background:var(--s1);border-radius:8px;padding:14px;cursor:pointer;transition:background .15s;position:relative}
+.card:hover{background:var(--s2)}
+.card:hover .play-fab{opacity:1;transform:translateY(0)}
+.card-art{width:100%;aspect-ratio:1;border-radius:6px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;font-size:44px;position:relative;overflow:hidden}
+.card-art.circle{border-radius:50%}
+.play-fab{position:absolute;bottom:7px;right:7px;width:38px;height:38px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;box-shadow:0 6px 16px rgba(0,0,0,.4)}
+.play-fab svg{fill:#000;width:16px;height:16px;margin-left:2px}
+.card-name{font-size:14px;font-weight:700;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-desc{font-size:12px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.foreign-tag{display:inline-flex;align-items:center;gap:4px;background:rgba(255,68,68,.15);border:1px solid rgba(255,68,68,.35);color:#ff6b6b;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:600;margin-top:4px}
+/* quick row */
+.quick-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.qcard{background:var(--s2);border-radius:6px;display:flex;align-items:center;overflow:hidden;cursor:pointer;transition:background .15s;height:54px}
+.qcard:hover{background:#333}
+.q-art{width:54px;height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px}
+.q-name{padding:0 12px;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* family switcher */
+.fam-switch{display:flex;gap:10px;margin-bottom:18px}
+.fam-card{flex:1;display:flex;align-items:center;gap:10px;background:var(--s1);border-radius:8px;padding:12px 14px;cursor:pointer;border:2px solid transparent;transition:all .15s}
+.fam-card:hover{background:var(--s2)}
+.fam-card.active{border-color:var(--green)}
+.fam-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0}
+.fam-name{font-size:14px;font-weight:700}
+.fam-desc{font-size:11px;color:var(--muted)}
+/* info banners */
+.banner-warn{background:rgba(255,170,0,.08);border:1px solid rgba(255,170,0,.3);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#ffaa00;display:flex;align-items:center;gap:8px}
+.banner-err{background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.25);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#ff6b6b;display:flex;align-items:center;gap:8px}
+.banner-ok{background:rgba(29,185,84,.07);border:1px solid rgba(29,185,84,.2);border-radius:10px;padding:14px 18px;margin-bottom:22px;display:flex;align-items:center;gap:14px}
+.banner-ok .ok-icon{font-size:24px;flex-shrink:0}
+.banner-ok .ok-title{font-size:14px;font-weight:700;color:var(--green);margin-bottom:2px}
+.banner-ok .ok-sub{font-size:12px;color:var(--muted)}
+.sec-highlight{background:rgba(29,185,84,.05);border:1px solid rgba(29,185,84,.13);border-radius:12px;padding:16px}
+/* ── NUDGE ── */
+#nudge{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--green);color:#000;border-radius:12px;padding:14px 18px;max-width:500px;width:calc(100% - 40px);box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;gap:14px;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none}
+#nudge.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:all}
+.nudge-ico{font-size:22px;flex-shrink:0}
+.nudge-text{flex:1}
+.nudge-title{font-size:14px;font-weight:700;margin-bottom:1px}
+.nudge-sub{font-size:12px;opacity:.8}
+.nudge-btns{display:flex;gap:7px;flex-shrink:0}
+.nbtn{border:none;border-radius:20px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.nbtn-go{background:#000;color:#fff}
+.nbtn-skip{background:rgba(0,0,0,.15);color:#000}
+/* ── CHAT PANEL ── */
+#chat-panel{position:fixed;top:0;right:-420px;width:420px;height:100vh;background:#0a0a0a;border-left:1px solid var(--s3);display:flex;flex-direction:column;z-index:250;transition:right .3s ease;box-shadow:-6px 0 24px rgba(0,0,0,.5)}
+#chat-panel.open{right:0}
+.chat-head{padding:14px 18px;border-bottom:1px solid var(--s3);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.chat-head-ico{width:34px;height:34px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.chat-head-info{flex:1}
+.chat-head-title{font-size:14px;font-weight:700}
+.chat-head-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.chat-x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;padding:2px;line-height:1}
+.chat-x:hover{color:var(--text)}
+.chat-prog{padding:8px 18px;border-bottom:1px solid var(--s3);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.cp-label{font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap;min-width:70px}
+.cp-track{flex:1;height:3px;background:var(--s3);border-radius:2px}
+.cp-fill{height:3px;background:var(--green);border-radius:2px;width:0;transition:width .4s}
+#chat-msgs{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+#chat-msgs::-webkit-scrollbar{width:4px}
+#chat-msgs::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+.msg{display:flex;gap:8px;align-items:flex-end}
+.msg.agent{align-self:flex-start;max-width:92%}
+.msg.user{align-self:flex-end;max-width:85%;flex-direction:row-reverse}
+.msg-av{width:26px;height:26px;border-radius:50%;background:var(--green);color:#000;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.msg-bbl{padding:10px 13px;border-radius:16px;font-size:13px;line-height:1.6}
+.msg.agent .msg-bbl{background:var(--s2);border-bottom-left-radius:4px}
+.msg.user .msg-bbl{background:var(--green);color:#000;font-weight:500;border-bottom-right-radius:4px}
+.msg.agent .msg-bbl h2{font-size:13px;color:var(--green);margin:8px 0 4px}
+.msg.agent .msg-bbl strong{color:var(--green)}
+.msg.agent .msg-bbl hr{border:none;border-top:1px solid var(--s3);margin:8px 0}
+.msg.agent .msg-bbl em{color:var(--muted);font-style:italic}
+.typing-dots{display:flex;gap:4px;padding:11px 13px}
+.typing-dots span{width:5px;height:5px;background:var(--muted);border-radius:50%;animation:bounce 1.2s infinite ease-in-out}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+.chat-input-row{padding:10px 14px 14px;border-top:1px solid var(--s3);display:flex;gap:8px;flex-shrink:0;background:#0a0a0a}
+#chat-in{flex:1;background:var(--s2);border:1.5px solid var(--s3);border-radius:20px;padding:9px 14px;color:var(--text);font-size:13px;outline:none;font-family:inherit;resize:none;min-height:38px;max-height:90px;line-height:1.5}
+#chat-in:focus{border-color:var(--green)}
+#chat-in::placeholder{color:var(--muted)}
+#chat-send{width:38px;height:38px;background:var(--green);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;align-self:flex-end;transition:background .15s}
+#chat-send:hover{background:var(--green-h)}
+#chat-send:disabled{background:var(--s3);cursor:not-allowed}
+#chat-send svg{fill:#000;width:15px;height:15px;margin-left:2px}
+/* ── PLAYER BAR ── */
+#player{height:88px;background:#181818;border-top:1px solid var(--s3);display:flex;align-items:center;padding:0 16px;gap:16px;flex-shrink:0}
+.p-track{display:flex;align-items:center;gap:10px;width:230px;flex-shrink:0}
+.p-art{width:48px;height:48px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;background:var(--s2)}
+.p-info{overflow:hidden}
+.p-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p-artist{font-size:11px;color:var(--muted);margin-top:2px}
+.p-heart{margin-left:10px;font-size:15px;color:var(--green);cursor:pointer;flex-shrink:0}
+.p-controls{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px}
+.p-btns{display:flex;align-items:center;gap:14px}
+.pbtn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:4px;line-height:1}
+.pbtn:hover{color:var(--text)}
+.pbtn.play-btn{width:30px;height:30px;background:var(--text);color:#000;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px}
+.pbtn.play-btn:hover{transform:scale(1.06)}
+.p-prog{display:flex;align-items:center;gap:8px;width:100%;max-width:480px}
+.p-time{font-size:10px;color:var(--muted);flex-shrink:0}
+.p-track-bar{flex:1;height:4px;background:#535353;border-radius:2px;cursor:pointer}
+.p-track-fill{height:100%;background:var(--text);border-radius:2px;width:32%;transition:width .1s}
+.p-track-bar:hover .p-track-fill{background:var(--green)}
+.p-vol{display:flex;align-items:center;gap:8px;width:180px;justify-content:flex-end}
+.vol-icon{font-size:13px;color:var(--muted)}
+.vol-bar{width:80px;height:4px;background:#535353;border-radius:2px;cursor:pointer}
+.vol-fill{height:100%;background:var(--text);border-radius:2px;width:65%}
+/* ── RESPONSIVE ── */
+@media(max-width:900px){#sidebar{display:none}.quick-row{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}#chat-panel{width:100%;right:-100%}}
+@media(max-width:580px){#content{padding:0 14px 100px}.hero{height:210px;padding:20px}.hero-title{font-size:24px}.quick-row{grid-template-columns:1fr}.fam-switch{flex-direction:column}}
 </style>
 </head>
 <body>
-
-<header>
-  <svg class="spotify-logo" viewBox="0 0 168 168" xmlns="http://www.w3.org/2000/svg">
-    <path d="M84 0C37.6 0 0 37.6 0 84s37.6 84 84 84 84-37.6 84-84S130.4 0 84 0zm38.6 121.1c-1.5 2.5-4.8 3.3-7.3 1.7-20-12.2-45.2-15-74.9-8.2-2.9.7-5.7-1.1-6.4-4-.7-2.9 1.1-5.7 4-6.4 32.5-7.4 60.4-4.2 82.9 9.5 2.5 1.5 3.3 4.9 1.7 7.4zm10.3-22.9c-1.9 3.1-5.9 4-9 2.1-22.9-14.1-57.8-18.1-84.9-9.9-3.5 1.1-7.2-.9-8.3-4.4-1.1-3.5.9-7.2 4.4-8.3 30.9-9.4 69.3-4.8 95.7 11.3 3.1 1.9 4 5.9 2.1 9.2zm.9-23.8c-27.5-16.3-72.8-17.8-99-9.8-4.2 1.3-8.6-1.1-9.9-5.3-1.3-4.2 1.1-8.6 5.3-9.9 30.1-9.1 80.1-7.4 111.7 11.4 3.8 2.2 5 7.1 2.7 10.8-2.3 3.7-7.1 5-10.8 2.8z"/>
-  </svg>
-  <h1>AI Discovery Agent</h1>
-  <span id="mode-label"></span>
-</header>
-
-<!-- MODE SELECTOR -->
-<div id="mode-screen">
-  <div class="mode-intro">
-    <h2>Personalise your Spotify experience</h2>
-    <p>Our AI agent adapts to where you are in your Spotify journey. Choose the experience that fits you.</p>
+<div class="app">
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="logo">
+      <svg viewBox="0 0 168 168"><path d="M84 0C37.6 0 0 37.6 0 84s37.6 84 84 84 84-37.6 84-84S130.4 0 84 0zm38.6 121.1c-1.5 2.5-4.8 3.3-7.3 1.7-20-12.2-45.2-15-74.9-8.2-2.9.7-5.7-1.1-6.4-4-.7-2.9 1.1-5.7 4-6.4 32.5-7.4 60.4-4.2 82.9 9.5 2.5 1.5 3.3 4.9 1.7 7.4zm10.3-22.9c-1.9 3.1-5.9 4-9 2.1-22.9-14.1-57.8-18.1-84.9-9.9-3.5 1.1-7.2-.9-8.3-4.4-1.1-3.5.9-7.2 4.4-8.3 30.9-9.4 69.3-4.8 95.7 11.3 3.1 1.9 4 5.9 2.1 9.2zm.9-23.8c-27.5-16.3-72.8-17.8-99-9.8-4.2 1.3-8.6-1.1-9.9-5.3-1.3-4.2 1.1-8.6 5.3-9.9 30.1-9.1 80.1-7.4 111.7 11.4 3.8 2.2 5 7.1 2.7 10.8-2.3 3.7-7.1 5-10.8 2.8z"/></svg>
+      <span>Spotify</span>
+    </div>
+    <div class="nav-links">
+      <div class="nav-link active">
+        <svg viewBox="0 0 24 24"><path d="M12.5 3.247a1 1 0 0 0-1 0L4 7.577V20h4.5v-6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v6H20V7.577l-7.5-4.33zm-2-1.732a3 3 0 0 1 3 0l7.5 4.33a2 2 0 0 1 1 1.732V21a1 1 0 0 1-1 1h-6.5a1 1 0 0 1-1-1v-6h-3v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.577a2 2 0 0 1 1-1.732l7.5-4.33z"/></svg>
+        Home
+      </div>
+      <div class="nav-link" onclick="focusSearch()">
+        <svg viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.787-9.407 10.688 0 5.907 4.226 10.694 9.407 10.694 2.96 0 5.607-1.408 7.396-3.567l4.352 4.352a1 1 0 1 0 1.414-1.414l-4.37-4.37c1.084-1.7 1.678-3.726 1.678-5.695 0-5.901-4.223-10.688-9.47-10.688zm-7.407 10.688c0-4.953 3.402-8.688 7.407-8.688 4.008 0 7.47 3.735 7.47 8.688 0 4.949-3.462 8.694-7.47 8.694-4.005 0-7.407-3.745-7.407-8.694z"/></svg>
+        Search
+      </div>
+    </div>
+    <div class="library-box">
+      <div class="lib-head">Your Library</div>
+      <div id="lib-items"></div>
+    </div>
   </div>
-  <div class="mode-cards">
-    <div class="mode-card" onclick="startMode('day_zero')">
-      <div class="mode-title"><span class="mode-icon">✨</span> Day Zero Onboarding</div>
-      <div class="mode-desc">Brand new to Spotify? We'll discover your musical taste from scratch and build a personalised profile just for you.</div>
-      <div class="mode-badge">7 questions · ~3 min</div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div id="topbar">
+      <div class="nav-arrows">
+        <button class="nav-arrow">‹</button>
+        <button class="nav-arrow">›</button>
+      </div>
+      <div class="searchbar">
+        <svg viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.787-9.407 10.688 0 5.907 4.226 10.694 9.407 10.694 2.96 0 5.607-1.408 7.396-3.567l4.352 4.352a1 1 0 1 0 1.414-1.414l-4.37-4.37c1.084-1.7 1.678-3.726 1.678-5.695 0-5.901-4.223-10.688-9.47-10.688zm-7.407 10.688c0-4.953 3.402-8.688 7.407-8.688 4.008 0 7.47 3.735 7.47 8.688 0 4.949-3.462 8.694-7.47 8.694-4.005 0-7.407-3.745-7.407-8.694z"/></svg>
+        <input type="text" id="search-in" placeholder="What do you want to play?" onkeydown="onSearchKey(event)">
+      </div>
+      <div class="topbar-right">
+        <div id="profile-trigger" onclick="toggleDrop()">
+          <div class="p-avatar" id="p-av" style="background:#535353"><span id="p-init">?</span></div>
+          <span id="p-name">Select Profile</span>
+          <span class="caret">▾</span>
+        </div>
+        <div id="pdrop">
+          <div class="pdrop-item" onclick="selectProfile('day_zero')">
+            <div class="pd-av" style="background:#1DB954;color:#000">A</div>
+            <div><div class="pd-name">Alex</div><div class="pd-label">New User · Day Zero</div></div>
+            <span class="pd-check" id="ck-day_zero">✓</span>
+          </div>
+          <div class="pdrop-item" onclick="selectProfile('long_term')">
+            <div class="pd-av" style="background:#7c3aed;color:#fff">J</div>
+            <div><div class="pd-name">Jordan</div><div class="pd-label">3 Years Active · Needs Refresh</div></div>
+            <span class="pd-check" id="ck-long_term">✓</span>
+          </div>
+          <div class="pdrop-item" onclick="selectProfile('family')">
+            <div class="pd-av" style="background:#ea580c;color:#fff">S</div>
+            <div><div class="pd-name">Sharma Family</div><div class="pd-label">Duo Plan · 2 Listeners</div></div>
+            <span class="pd-check" id="ck-family">✓</span>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="mode-card" onclick="startMode('refresh')">
-      <div class="mode-title"><span class="mode-icon">🔄</span> Taste Refresh</div>
-      <div class="mode-desc">Been on Spotify for a while but recommendations feel stale? Let's check what's changed and update your profile.</div>
-      <div class="mode-badge">5 questions · ~2 min</div>
-    </div>
-    <div class="mode-card" onclick="startMode('family_duo')">
-      <div class="mode-title"><span class="mode-icon">👥</span> Family / Duo Setup</div>
-      <div class="mode-desc">Sharing your account? Getting recommendations that feel like they're for someone else? Let's separate your profiles.</div>
-      <div class="mode-badge">4 questions · ~2 min</div>
+
+    <div id="content">
+      <div id="empty-state">
+        <div class="big-icon">🎵</div>
+        <h2>Spotify AI Discovery Agent</h2>
+        <p>Select a profile from the top right to experience personalised AI-powered music discovery — from a brand new listener to a plateaued long-term user to a mixed family account.</p>
+        <button class="btn-g" onclick="toggleDrop()">Choose a Profile ▾</button>
+      </div>
+      <div id="pcontent" style="display:none"></div>
     </div>
   </div>
 </div>
 
-<!-- CHAT SCREEN -->
-<div id="chat-screen">
-  <div id="progress-wrap">
-    <div id="progress-label">Question 0 of 0</div>
-    <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+<!-- PLAYER BAR -->
+<div id="player">
+  <div class="p-track">
+    <div class="p-art" id="p-art">🎵</div>
+    <div class="p-info">
+      <div class="p-name" id="p-track-name">—</div>
+      <div class="p-artist" id="p-artist">Select a track</div>
+    </div>
+    <div class="p-heart">♡</div>
   </div>
-  <div id="messages"></div>
-  <button id="restart-btn" onclick="restart()">← Try another mode</button>
-  <div id="input-area">
-    <textarea id="user-input" placeholder="Type your answer…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-    <button id="send-btn" onclick="sendMessage()" disabled>
+  <div class="p-controls">
+    <div class="p-btns">
+      <button class="pbtn">⇌</button>
+      <button class="pbtn">⏮</button>
+      <button class="pbtn play-btn">▶</button>
+      <button class="pbtn">⏭</button>
+      <button class="pbtn">↻</button>
+    </div>
+    <div class="p-prog">
+      <span class="p-time">1:23</span>
+      <div class="p-track-bar"><div class="p-track-fill"></div></div>
+      <span class="p-time">3:47</span>
+    </div>
+  </div>
+  <div class="p-vol">
+    <span class="vol-icon">🔊</span>
+    <div class="vol-bar"><div class="vol-fill"></div></div>
+  </div>
+</div>
+
+<!-- NUDGE TOAST -->
+<div id="nudge">
+  <div class="nudge-ico" id="n-ico">✨</div>
+  <div class="nudge-text">
+    <div class="nudge-title" id="n-title">Set up your taste profile</div>
+    <div class="nudge-sub" id="n-sub">Takes 2 minutes · Instantly better recommendations</div>
+  </div>
+  <div class="nudge-btns">
+    <button class="nbtn nbtn-go" onclick="nudgeGo()">Start</button>
+    <button class="nbtn nbtn-skip" onclick="nudgeSkip()">Later</button>
+  </div>
+</div>
+
+<!-- CHAT PANEL -->
+<div id="chat-panel">
+  <div class="chat-head">
+    <div class="chat-head-ico">✨</div>
+    <div class="chat-head-info">
+      <div class="chat-head-title" id="chat-title">Taste Discovery</div>
+      <div class="chat-head-sub" id="chat-sub">AI-powered personalisation</div>
+    </div>
+    <button class="chat-x" onclick="closeChat()">✕</button>
+  </div>
+  <div class="chat-prog">
+    <span class="cp-label" id="cp-label">Starting…</span>
+    <div class="cp-track"><div class="cp-fill" id="cp-fill"></div></div>
+  </div>
+  <div id="chat-msgs"></div>
+  <div class="chat-input-row">
+    <textarea id="chat-in" placeholder="Type your answer…" rows="1" onkeydown="chatKey(event)" oninput="autoResize(this)" disabled></textarea>
+    <button id="chat-send" onclick="sendChat()" disabled>
       <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
     </button>
   </div>
 </div>
 
 <script>
-  let sessionId = null;
-  let currentMode = null;
-  let maxQuestions = 7;
-  let questionCount = 0;
-  let isComplete = false;
-  let isWaiting = false;
+// ── GRADIENTS ──────────────────────────────────────────────
+const G=[
+  'linear-gradient(135deg,#1a1a2e,#e94560)',
+  'linear-gradient(135deg,#0d0221,#ff6b35)',
+  'linear-gradient(135deg,#0a2e1a,#1DB954)',
+  'linear-gradient(135deg,#2d1b69,#ff007f)',
+  'linear-gradient(135deg,#0d0d0d,#00d4ff)',
+  'linear-gradient(135deg,#1a0000,#cc3333)',
+  'linear-gradient(135deg,#001a33,#3366ff)',
+  'linear-gradient(135deg,#2a1500,#ff8800)',
+  'linear-gradient(135deg,#1a0a1a,#cc44cc)',
+  'linear-gradient(135deg,#0a001a,#6600cc)',
+  'linear-gradient(135deg,#001a00,#33aa33)',
+  'linear-gradient(135deg,#1a1500,#ccaa00)',
+];
 
-  const modeLabels = {
-    day_zero: 'Day Zero Onboarding',
-    refresh: 'Taste Refresh',
-    family_duo: 'Family / Duo Setup',
-  };
+// ── STATE ──────────────────────────────────────────────────
+let profile=null, famMember='raj';
+let chatSid=null, chatMaxQ=7, chatQ=0, chatDone=false, chatBusy=false;
+let onboarded={}, nudgeSkips={}, nudgeTimer=null;
 
-  async function startMode(mode) {
-    currentMode = mode;
-    document.getElementById('mode-screen').style.display = 'none';
-    document.getElementById('chat-screen').style.display = 'flex';
-    document.getElementById('mode-label').textContent = modeLabels[mode];
+// ── PROFILE META ───────────────────────────────────────────
+const META={
+  day_zero:{name:'Alex',init:'A',bg:'#1DB954',fg:'#000',apiMode:'day_zero'},
+  long_term:{name:'Jordan',init:'J',bg:'#7c3aed',fg:'#fff',apiMode:'refresh'},
+  family:{name:'Sharma Family',init:'S',bg:'#ea580c',fg:'#fff',apiMode:'family_duo'},
+};
 
-    showTyping();
-    try {
-      const res = await fetch('/api/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to start session');
+// ── MOCK DATA ──────────────────────────────────────────────
+const DATA={
+  day_zero:{
+    before:{
+      hero:{bg:'linear-gradient(150deg,#121212 0%,#1a3a22 60%,#0d2016 100%)',tag:'Welcome to Spotify',title:'Your music journey\nstarts here',sub:"Tell us what you love and we'll build the perfect soundtrack for your life.",btn:'Set Up My Taste',btn2:'Explore Later'},
+      library:[],
+      sections:[
+        {title:'Trending Right Now',type:'cards',items:[
+          {n:'Today\'s Top Hits',d:'The most played songs today',e:'🔥',g:G[0]},
+          {n:'Global Top 50',d:'Your daily update of the most played tracks right now',e:'🌍',g:G[1]},
+          {n:'New Music Friday',d:'The best new music, one day early',e:'🎶',g:G[2]},
+          {n:'Viral Hits',d:'Songs breaking through right now',e:'📈',g:G[3]},
+          {n:'Pop Rising',d:"Tomorrow's hits today",e:'⭐',g:G[4]},
+          {n:'Hot Country',d:'The hottest country songs right now',e:'🤠',g:G[5]},
+        ]},
+        {title:'Popular Genres to Explore',type:'cards',items:[
+          {n:'Pop',d:'Chart-topping, feel-good hits',e:'🎤',g:G[2]},
+          {n:'Hip-Hop',d:'The best in rap and hip-hop',e:'🎧',g:G[0]},
+          {n:'Indie',d:'Discover independent music',e:'🎸',g:G[3]},
+          {n:'Electronic',d:'Beats, synths, and beyond',e:'⚡',g:G[4]},
+          {n:'R&B',d:'Soul, rhythm and blues',e:'🎵',g:G[1]},
+          {n:'Rock',d:'Classic and contemporary rock',e:'🤘',g:G[5]},
+        ]},
+      ],
+      nudge:{delay:4000,ico:'✨',title:'Set up your taste profile',sub:'Takes 2 minutes · Instantly better recommendations'},
+    },
+    after:{
+      hero:{bg:'linear-gradient(135deg,#0a2e1a 0%,#1DB954 100%)',tag:'Personalised For You',title:"Welcome to your\nspotlight, Alex",sub:"Your taste profile is live. Here's music we think you'll love."},
+      library:[{n:'Liked Songs',d:'Playlist',e:'💚',g:'linear-gradient(135deg,#450af5,#c4efd9)'}],
+      okBanner:'Taste profile created — your home feed is now personalised',
+      sections:[
+        {title:'✨ Based on Your Taste Profile',type:'cards',highlight:true,circle:true,items:[
+          {n:'Hozier',d:'Folk-soul with dark, literary edge — matches your deep listening preference',e:'🎸',g:G[0]},
+          {n:'Phoebe Bridgers',d:'Atmospheric indie with emotional storytelling',e:'🌙',g:G[3]},
+          {n:'Bon Iver',d:'Introspective folk that pairs with your evening wind-down',e:'🌲',g:G[2]},
+          {n:'The National',d:'Literary indie rock with cerebral lyrics',e:'📖',g:G[1]},
+          {n:'Fleet Foxes',d:'Harmonically rich folk perfect for your calm sessions',e:'🦊',g:G[4]},
+        ]},
+        {title:"Made for Alex · Daily Mixes",type:'cards',items:[
+          {n:'Daily Mix 1',d:'Hozier, Bon Iver, Phoebe Bridgers and more',e:'1️⃣',g:G[0]},
+          {n:'Daily Mix 2',d:'Chill indie for focus and evenings',e:'🌙',g:G[3]},
+          {n:'Discovery Mix',d:"Fresh artists we think you'll love",e:'🔭',g:G[2]},
+          {n:'Mood Boost',d:'Upbeat picks for when you need energy',e:'⚡',g:G[5]},
+        ]},
+      ],
+    },
+  },
+  long_term:{
+    before:{
+      hero:{bg:'linear-gradient(150deg,#1a1a2e 0%,#7c3aed 60%,#4a1a8a 100%)',tag:'Good Evening, Jordan',title:'Back to your\nusual sounds',sub:'3 years of listening. Your playlists are waiting.'},
+      library:[
+        {n:'Afternoon Focus',d:'Playlist · 78 songs',e:'☕',g:G[0]},
+        {n:'Running Mix',d:'Playlist · 45 songs',e:'🏃',g:G[1]},
+        {n:'Late Night Drive',d:'Playlist · 32 songs',e:'🚗',g:G[3]},
+        {n:'Liked Songs',d:'Playlist · 312 songs',e:'💜',g:'linear-gradient(135deg,#450af5,#c4efd9)'},
+      ],
+      sections:[
+        {title:'Jump Back In',type:'quick',items:[
+          {n:'Afternoon Focus',e:'☕',g:G[0]},
+          {n:'Running Mix',e:'🏃',g:G[1]},
+          {n:'Late Night Drive',e:'🚗',g:G[3]},
+          {n:'Arctic Monkeys',e:'🐒',g:G[2]},
+          {n:'Radiohead',e:'📻',g:G[4]},
+          {n:'The Killers',e:'⚡',g:G[5]},
+        ]},
+        {title:'Recommended for You',type:'cards',circle:true,stale:true,items:[
+          {n:'Arctic Monkeys',d:'Indie rock · Top pick for you',e:'🐒',g:G[2]},
+          {n:'The Killers',d:'Alternative rock · Your 3-year favourite',e:'⚡',g:G[0]},
+          {n:'Radiohead',d:'Art rock · Consistent in your history',e:'📡',g:G[4]},
+          {n:'Arcade Fire',d:'Indie rock · Long-time listen',e:'🎪',g:G[1]},
+          {n:'Interpol',d:'Post-punk · Matches your usual mood',e:'🕶',g:G[3]},
+          {n:'Franz Ferdinand',d:'Indie rock · Frequently played',e:'🎻',g:G[5]},
+        ]},
+        {title:'Your Playlists',type:'cards',items:[
+          {n:'Afternoon Focus',d:'78 songs · Your daily companion',e:'☕',g:G[0]},
+          {n:'Running Mix',d:'45 songs · Built over 2 years',e:'🏃',g:G[1]},
+          {n:'Late Night Drive',d:'32 songs · Indie and post-punk',e:'🚗',g:G[3]},
+          {n:'Indie Discoveries 2022',d:"18 songs · Hasn't been updated",e:'📅',g:G[2]},
+        ]},
+      ],
+      nudge:{delay:3000,ico:'🔄',title:'Your music feels like a loop',sub:'Same artists for 6 months — let us find what\'s next for you'},
+    },
+    after:{
+      hero:{bg:'linear-gradient(150deg,#0d1a2e 0%,#7c3aed 80%)',tag:'Taste Refreshed, Jordan',title:'New sounds are\nwaiting for you',sub:"We've updated your profile. Fresh discoveries are loading in."},
+      library:[
+        {n:'Afternoon Focus',d:'Playlist · 78 songs',e:'☕',g:G[0]},
+        {n:'Running Mix',d:'Playlist · 45 songs',e:'🏃',g:G[1]},
+        {n:'Late Night Drive',d:'Playlist · 32 songs',e:'🚗',g:G[3]},
+        {n:'Liked Songs',d:'Playlist · 312 songs',e:'💜',g:'linear-gradient(135deg,#450af5,#c4efd9)'},
+      ],
+      okBanner:'Taste profile refreshed — your recommendations have been updated',
+      sections:[
+        {title:'🔄 Fresh Finds Based on Your Update',type:'cards',highlight:true,circle:true,items:[
+          {n:'Wet Leg',d:'Dry British indie-rock with sardonic wit — new territory for you',e:'🦵',g:G[6]},
+          {n:'IDLES',d:'Visceral post-punk energy that pushes past your indie rock comfort zone',e:'🔊',g:G[0]},
+          {n:'Fontaines D.C.',d:'Literary post-punk from Dublin — picks up where Interpol left off',e:'🏙',g:G[3]},
+          {n:'Soccer Mommy',d:'Indie rock with emotional candour and lo-fi warmth',e:'⚽',g:G[2]},
+          {n:'Yard Act',d:'Post-punk with spoken-word storytelling and sharp social commentary',e:'🏚',g:G[5]},
+        ]},
+        {title:'Jump Back In',type:'quick',items:[
+          {n:'Afternoon Focus',e:'☕',g:G[0]},
+          {n:'Running Mix',e:'🏃',g:G[1]},
+          {n:'Late Night Drive',e:'🚗',g:G[3]},
+          {n:'Wet Leg',e:'🦵',g:G[6]},
+          {n:'IDLES',e:'🔊',g:G[0]},
+          {n:'Fontaines D.C.',e:'🏙',g:G[3]},
+        ]},
+        {title:'Your Playlists',type:'cards',items:[
+          {n:'Afternoon Focus',d:'78 songs · Your daily companion',e:'☕',g:G[0]},
+          {n:'Running Mix',d:'45 songs · Built over 2 years',e:'🏃',g:G[1]},
+          {n:'Late Night Drive',d:'32 songs · Indie and post-punk',e:'🚗',g:G[3]},
+        ]},
+      ],
+    },
+  },
+};
 
-      sessionId = data.session_id;
-      maxQuestions = data.max_questions;
-      questionCount = 1;
+const FAM={
+  raj:{
+    name:'Raj',init:'R',color:'#2563eb',desc:'Rock & Indie',
+    library:[
+      {n:'Classic Rock Hits',d:'Playlist · 120 songs',e:'🎸',g:G[0]},
+      {n:'Indie Discoveries',d:'Playlist · 55 songs',e:'🔭',g:G[2]},
+      {n:'Gym Energy',d:'Playlist · 40 songs',e:'💪',g:G[5]},
+    ],
+    hero:{bg:'linear-gradient(150deg,#0d1a2e 0%,#2563eb 100%)',tag:'Sharma Family · Duo Plan',title:'Good evening,\nRaj',sub:'Rock & Indie listener'},
+    sections:[
+      {title:'Jump Back In',type:'quick',items:[
+        {n:'Classic Rock Hits',e:'🎸',g:G[0]},{n:'Indie Discoveries',e:'🔭',g:G[2]},
+        {n:'Led Zeppelin',e:'⚡',g:G[4]},{n:'Pearl Jam',e:'🪸',g:G[1]},
+        {n:'Foo Fighters',e:'🤘',g:G[0]},{n:'Gym Energy',e:'💪',g:G[5]},
+      ]},
+      {title:"Recommended for You — Raj",type:'cards',circle:true,contaminated:true,items:[
+        {n:'Led Zeppelin',d:'Classic rock legend · Your top play',e:'⚡',g:G[4]},
+        {n:'Arijit Singh',d:"Bollywood · Appeared in family history",e:'🎤',g:G[7],foreign:true},
+        {n:'Pearl Jam',d:'Grunge rock · Long-time favourite',e:'🪸',g:G[1]},
+        {n:'BTS',d:'K-Pop · From shared account',e:'✨',g:G[8],foreign:true},
+        {n:'Foo Fighters',d:'Rock · Frequently played',e:'🤘',g:G[0]},
+        {n:'Shreya Ghoshal',d:"Bollywood · Another listener's taste",e:'🌸',g:G[9],foreign:true},
+      ]},
+    ],
+    cleanSections:[
+      {title:"🎸 Raj's Clean Feed — Separated",type:'cards',highlight:true,circle:true,items:[
+        {n:'Led Zeppelin',d:'Classic rock · Your undisputed top',e:'⚡',g:G[4]},
+        {n:'Pearl Jam',d:'Grunge rock · Your long-time favourite',e:'🪸',g:G[1]},
+        {n:'Foo Fighters',d:'Rock · Frequently played by you',e:'🤘',g:G[0]},
+        {n:'Queens of the Stone Age',d:'Hard rock · Matches your energy',e:'👑',g:G[5]},
+        {n:'Them Crooked Vultures',d:'Supergroup · Builds on your taste',e:'🦅',g:G[3]},
+      ]},
+    ],
+    nudge:{delay:2500,ico:'👥',title:"Raj's feed has Priya's music in it",sub:'Separate your profiles — takes 2 minutes'},
+  },
+  priya:{
+    name:'Priya',init:'P',color:'#db2777',desc:'Bollywood & K-Pop',
+    library:[
+      {n:'Bollywood Classics',d:'Playlist · 95 songs',e:'🎬',g:G[7]},
+      {n:'K-Pop Favourites',d:'Playlist · 68 songs',e:'✨',g:G[8]},
+      {n:'Morning Raagas',d:'Playlist · 22 songs',e:'🌅',g:G[9]},
+    ],
+    hero:{bg:'linear-gradient(150deg,#1a0d1a 0%,#db2777 100%)',tag:'Sharma Family · Duo Plan',title:'Good evening,\nPriya',sub:'Bollywood & K-Pop listener'},
+    sections:[
+      {title:'Jump Back In',type:'quick',items:[
+        {n:'Bollywood Classics',e:'🎬',g:G[7]},{n:'K-Pop Favourites',e:'✨',g:G[8]},
+        {n:'Arijit Singh',e:'🎤',g:G[7]},{n:'BTS',e:'💫',g:G[8]},
+        {n:'Morning Raagas',e:'🌅',g:G[9]},{n:'BLACKPINK',e:'🌸',g:G[3]},
+      ]},
+      {title:"Recommended for You — Priya",type:'cards',circle:true,contaminated:true,items:[
+        {n:'Arijit Singh',d:'Bollywood · Top play',e:'🎤',g:G[7]},
+        {n:'Foo Fighters',d:'Rock · From shared account',e:'🤘',g:G[0],foreign:true},
+        {n:'BTS',d:'K-Pop · Consistent favourite',e:'💫',g:G[8]},
+        {n:'Radiohead',d:"Alternative rock · Another listener's taste",e:'📡',g:G[4],foreign:true},
+        {n:'BLACKPINK',d:'K-Pop · Weekly listener',e:'🌸',g:G[3]},
+        {n:'Arctic Monkeys',d:'Indie rock · From family history',e:'🐒',g:G[2],foreign:true},
+      ]},
+    ],
+    cleanSections:[
+      {title:"🎬 Priya's Clean Feed — Separated",type:'cards',highlight:true,circle:true,items:[
+        {n:'Arijit Singh',d:'Bollywood · Your top artist',e:'🎤',g:G[7]},
+        {n:'BTS',d:'K-Pop · Consistent in your history',e:'💫',g:G[8]},
+        {n:'BLACKPINK',d:'K-Pop · Weekly listener',e:'🌸',g:G[3]},
+        {n:'A.R. Rahman',d:'Bollywood/Fusion · Matches your taste',e:'🎼',g:G[9]},
+        {n:'NewJeans',d:'K-Pop · Up next based on your BTS love',e:'👖',g:G[10]},
+      ]},
+    ],
+    nudge:{delay:2500,ico:'👥',title:"Priya's feed has Raj's music in it",sub:'Separate your profiles — takes 2 minutes'},
+  },
+};
 
-      removeTyping();
-      addMessage('agent', data.message);
-      updateProgress(questionCount, maxQuestions);
-      enableInput();
-    } catch (e) {
-      removeTyping();
-      addMessage('agent', '⚠️ Could not start session: ' + e.message);
-    }
+// ── PROFILE SWITCHING ──────────────────────────────────────
+function toggleDrop(){
+  document.getElementById('pdrop').classList.toggle('open');
+}
+document.addEventListener('click',e=>{
+  if(!document.getElementById('profile-trigger').contains(e.target))
+    document.getElementById('pdrop').classList.remove('open');
+});
+
+function selectProfile(key){
+  document.getElementById('pdrop').classList.remove('open');
+  document.querySelectorAll('.pd-check').forEach(el=>el.style.display='none');
+  document.getElementById('ck-'+key).style.display='block';
+  profile=key;
+  const m=META[key];
+  document.getElementById('p-av').style.background=m.bg;
+  document.getElementById('p-av').style.color=m.fg;
+  document.getElementById('p-init').textContent=m.init;
+  document.getElementById('p-name').textContent=m.name;
+  document.getElementById('empty-state').style.display='none';
+  document.getElementById('pcontent').style.display='block';
+  clearTimeout(nudgeTimer);
+  hideNudge();
+  renderProfile();
+}
+
+// ── RENDER ─────────────────────────────────────────────────
+function renderProfile(){
+  const el=document.getElementById('pcontent');
+  el.innerHTML='';
+  if(profile==='family'){renderFamily(el);return;}
+  const done=onboarded[profile];
+  const d=done ? DATA[profile].after : DATA[profile].before;
+  renderLibrary(d.library||[]);
+  // hero
+  el.appendChild(buildHero(d.hero,done?null:'openChat'));
+  // success banner
+  if(done && d.okBanner) el.appendChild(buildOkBanner(d.okBanner));
+  d.sections.forEach(s=>el.appendChild(buildSection(s)));
+  // schedule nudge
+  if(!done && d.nudge) scheduleNudge(d.nudge);
+}
+
+function renderFamily(el){
+  const m=FAM[famMember];
+  const done=onboarded['family'];
+  renderLibrary(m.library);
+  el.appendChild(buildHero(m.hero,null));
+  // family member switcher
+  const sw=document.createElement('div');
+  sw.className='fam-switch';
+  ['raj','priya'].forEach(k=>{
+    const f=FAM[k];
+    const c=document.createElement('div');
+    c.className='fam-card'+(famMember===k?' active':'');
+    c.innerHTML=`<div class="fam-av" style="background:${f.color};color:#fff">${f.init}</div><div><div class="fam-name">${f.name}</div><div class="fam-desc">${f.desc}</div></div>`;
+    c.onclick=()=>{famMember=k;renderProfile();};
+    sw.appendChild(c);
+  });
+  el.appendChild(sw);
+  if(!done){
+    // contamination notice
+    const notice=document.createElement('div');
+    notice.className='banner-err';
+    notice.innerHTML=`<span>🚨</span><span><strong>Profile contamination detected</strong> — Recommendations below are mixing ${famMember==='raj'?"Raj's rock with Priya's Bollywood & K-Pop":"Priya's Bollywood with Raj's rock"}. Flagged items don't belong here.</span><button class="btn-g" onclick="openChat()" style="margin-left:auto;white-space:nowrap;font-size:12px;padding:8px 16px;flex-shrink:0">Separate Profiles</button>`;
+    el.appendChild(notice);
+    m.sections.forEach(s=>el.appendChild(buildSection(s)));
+    scheduleNudge(m.nudge);
+  } else {
+    el.appendChild(buildOkBanner(`${m.name}'s profile separated — feed is now clean`));
+    m.cleanSections.forEach(s=>el.appendChild(buildSection(s)));
+    m.sections.filter(s=>s.type==='quick').forEach(s=>el.appendChild(buildSection(s)));
+  }
+}
+
+function renderLibrary(items){
+  const el=document.getElementById('lib-items');
+  el.innerHTML='';
+  if(!items.length){
+    el.innerHTML=`<div style="padding:10px 8px;font-size:12px;color:var(--muted)">No playlists yet.<br><span style="color:var(--green);cursor:pointer" onclick="openChat()">Build your profile first →</span></div>`;
+    return;
+  }
+  items.forEach(item=>{
+    const d=document.createElement('div');
+    d.className='lib-item';
+    d.onclick=()=>playItem(item);
+    d.innerHTML=`<div class="lib-art" style="background:${item.g}">${item.e}</div><div><div class="lib-name">${item.n}</div><div class="lib-meta">${item.d||''}</div></div>`;
+    el.appendChild(d);
+  });
+}
+
+function buildHero(h,btnAction){
+  const el=document.createElement('div');
+  el.className='hero';
+  el.innerHTML=`
+    <div class="hero-bg" style="background:${h.bg}"></div>
+    <div class="hero-inner">
+      <div class="hero-tag">${h.tag}</div>
+      <div class="hero-title">${h.title}</div>
+      <div class="hero-sub">${h.sub||''}</div>
+      <div class="hero-btns">
+        ${h.btn&&btnAction?`<button class="btn-g" onclick="${btnAction}()">${h.btn}</button>`:''}
+        ${h.btn2?`<button class="btn-o">${h.btn2}</button>`:''}
+      </div>
+    </div>`;
+  return el;
+}
+
+function buildOkBanner(msg){
+  const el=document.createElement('div');
+  el.className='banner-ok';
+  el.innerHTML=`<div class="ok-icon">✅</div><div><div class="ok-title">Done</div><div class="ok-sub">${msg}</div></div>`;
+  return el;
+}
+
+function buildSection(sec){
+  const wrap=document.createElement('div');
+  wrap.className=sec.highlight?'section sec-highlight':'section';
+
+  // header
+  const head=document.createElement('div');
+  head.className='sec-head';
+  head.innerHTML=`<div class="sec-title">${sec.title}</div>${sec.type!=='quick'?'<span class="sec-link">Show all</span>':''}`;
+  wrap.appendChild(head);
+
+  // stale warning
+  if(sec.stale){
+    const w=document.createElement('div');
+    w.className='banner-warn';
+    w.innerHTML=`⚠️ <span>Recommendations unchanged for <strong>6 months</strong>. <span style="cursor:pointer;text-decoration:underline" onclick="openChat()">Refresh your taste →</span></span>`;
+    wrap.appendChild(w);
+  }
+  // contamination note
+  if(sec.contaminated){
+    const c=document.createElement('div');
+    c.className='banner-err';
+    c.innerHTML=`🚨 <span>Some tracks below <strong>aren't yours</strong> — they're from the other listener. <span style="cursor:pointer;text-decoration:underline" onclick="openChat()">Separate profiles →</span></span>`;
+    wrap.appendChild(c);
   }
 
-  async function sendMessage() {
-    if (isWaiting || isComplete) return;
-    const input = document.getElementById('user-input');
-    const text = input.value.trim();
-    if (!text) return;
-
-    input.value = '';
-    autoResize(input);
-    addMessage('user', text);
-    disableInput();
-    showTyping();
-
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId, message: text }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Chat error');
-
-      questionCount = data.question_count;
-      isComplete = data.is_complete;
-
-      removeTyping();
-      addMessage('agent', data.message);
-      updateProgress(Math.min(questionCount - 1, maxQuestions), maxQuestions);
-
-      if (isComplete) {
-        showRestart();
-      } else {
-        enableInput();
-      }
-    } catch (e) {
-      removeTyping();
-      addMessage('agent', '⚠️ Error: ' + e.message);
-      enableInput();
-    }
+  if(sec.type==='quick'){
+    const row=document.createElement('div');
+    row.className='quick-row';
+    sec.items.forEach(item=>{
+      const q=document.createElement('div');
+      q.className='qcard';
+      q.onclick=()=>playItem(item);
+      q.innerHTML=`<div class="q-art" style="background:${item.g}">${item.e}</div><div class="q-name">${item.n}</div>`;
+      row.appendChild(q);
+    });
+    wrap.appendChild(row);
+  } else {
+    const grid=document.createElement('div');
+    grid.className='cards';
+    sec.items.forEach(item=>{
+      const card=document.createElement('div');
+      card.className='card';
+      card.onclick=()=>playItem(item);
+      const artClass='card-art'+(sec.circle?' circle':'');
+      const foreignTag=item.foreign?`<div class="foreign-tag">⚠ Not yours</div>`:'';
+      card.innerHTML=`
+        <div class="${artClass}" style="background:${item.g}">${item.e}
+          <div class="play-fab"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+        </div>
+        <div class="card-name">${item.n}${item.foreign?' ⚠️':''}</div>
+        <div class="card-desc">${item.d||''}</div>
+        ${foreignTag}`;
+      grid.appendChild(card);
+    });
+    wrap.appendChild(grid);
   }
+  return wrap;
+}
 
-  function addMessage(role, text) {
-    const wrap = document.getElementById('messages');
-    const div = document.createElement('div');
-    div.className = 'message ' + role;
-
-    const avatar = document.createElement('div');
-    avatar.className = 'avatar ' + (role === 'agent' ? 'agent-avatar' : 'user-avatar');
-    avatar.textContent = role === 'agent' ? 'S' : 'You';
-
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble';
-    bubble.innerHTML = renderMarkdown(text);
-
-    div.appendChild(avatar);
-    div.appendChild(bubble);
-    wrap.appendChild(div);
-    wrap.scrollTop = wrap.scrollHeight;
+// ── NUDGE ──────────────────────────────────────────────────
+function scheduleNudge(n){
+  nudgeTimer=setTimeout(()=>showNudge(n),n.delay||4000);
+}
+function showNudge(n){
+  if(onboarded[profile])return;
+  document.getElementById('n-ico').textContent=n.ico;
+  document.getElementById('n-title').textContent=n.title;
+  document.getElementById('n-sub').textContent=n.sub;
+  document.getElementById('nudge').classList.add('show');
+}
+function hideNudge(){document.getElementById('nudge').classList.remove('show');}
+function nudgeGo(){hideNudge();openChat();}
+function nudgeSkip(){
+  hideNudge();
+  if(!profile)return;
+  nudgeSkips[profile]=(nudgeSkips[profile]||0)+1;
+  if(nudgeSkips[profile]>=3 && !onboarded[profile]){
+    setTimeout(()=>showNudge({ico:'🎯',title:'Help us understand you better — takes 2 minutes',sub:"Your recommendations keep missing. Let's fix that."}),4000);
   }
+}
 
-  function renderMarkdown(text) {
-    // Minimal markdown: headings, bold, italic, hr, blockquote
-    return text
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      // Restore > for blockquote after escaping
-      .replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>')
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^---$/gm, '<hr>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/\n/g, '<br>');
-  }
+// ── SEARCH NUDGE ───────────────────────────────────────────
+function focusSearch(){document.getElementById('search-in').focus();}
+let searchT=null;
+function onSearchKey(e){
+  if(e.key!=='Enter')return;
+  const q=document.getElementById('search-in').value.trim();
+  if(!q||!profile||onboarded[profile])return;
+  clearTimeout(searchT);
+  searchT=setTimeout(()=>showNudge({ico:'🔍',title:`Couldn't find great results for "${q}"`,sub:'Your taste profile would help us show better matches'}),1500);
+}
 
-  function showTyping() {
-    isWaiting = true;
-    const wrap = document.getElementById('messages');
-    const div = document.createElement('div');
-    div.className = 'message agent';
-    div.id = 'typing-bubble';
+// ── CHAT ───────────────────────────────────────────────────
+const CHAT_META={
+  day_zero:{title:'Taste Discovery',sub:"Let's find your sound — 7 questions"},
+  long_term:{title:'Taste Refresh',sub:'Updating your profile — 5 questions'},
+  family:{title:'Profile Separation',sub:'Separating your household — 4 questions'},
+};
 
-    const avatar = document.createElement('div');
-    avatar.className = 'avatar agent-avatar';
-    avatar.textContent = 'S';
+function openChat(){
+  if(!profile)return;
+  const cm=CHAT_META[profile];
+  document.getElementById('chat-title').textContent=cm.title;
+  document.getElementById('chat-sub').textContent=cm.sub;
+  document.getElementById('chat-msgs').innerHTML='';
+  document.getElementById('cp-fill').style.width='0%';
+  document.getElementById('cp-label').textContent='Starting…';
+  document.getElementById('chat-in').disabled=true;
+  document.getElementById('chat-send').disabled=true;
+  chatSid=null;chatQ=0;chatDone=false;chatBusy=false;
+  document.getElementById('chat-panel').classList.add('open');
+  startChat(META[profile].apiMode);
+}
 
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble';
-    bubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+function closeChat(){document.getElementById('chat-panel').classList.remove('open');}
 
-    div.appendChild(avatar);
-    div.appendChild(bubble);
-    wrap.appendChild(div);
-    wrap.scrollTop = wrap.scrollHeight;
-  }
+async function startChat(mode){
+  showTyping();
+  try{
+    const r=await fetch('/api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.detail||'Failed to start');
+    chatSid=d.session_id;chatMaxQ=d.max_questions;chatQ=1;
+    removeTyping();addMsg('agent',d.message);updateProg(1,chatMaxQ);enableIn();
+  }catch(e){removeTyping();addMsg('agent','⚠️ '+e.message+'\n\n(Check ANTHROPIC_API_KEY in Railway Variables)');}
+}
 
-  function removeTyping() {
-    isWaiting = false;
-    const el = document.getElementById('typing-bubble');
-    if (el) el.remove();
-  }
+async function sendChat(){
+  if(chatBusy||chatDone||!chatSid)return;
+  const inp=document.getElementById('chat-in');
+  const txt=inp.value.trim();if(!txt)return;
+  inp.value='';autoResize(inp);
+  addMsg('user',txt);disableIn();showTyping();
+  try{
+    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:chatSid,message:txt})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.detail||'Chat error');
+    chatQ=d.question_count;chatDone=d.is_complete;
+    removeTyping();addMsg('agent',d.message);
+    updateProg(Math.min(chatQ-1,chatMaxQ),chatMaxQ);
+    if(chatDone){
+      onboarded[profile]=true;
+      setTimeout(()=>{renderProfile();document.getElementById('content').scrollTop=0;},600);
+      addMsg('agent','🏠 Your home feed has been updated — check it out!');
+      document.getElementById('chat-in').disabled=true;
+      document.getElementById('chat-send').disabled=true;
+      document.getElementById('cp-label').textContent='Complete ✓';
+      setTimeout(closeChat,3500);
+    }else{enableIn();}
+  }catch(e){removeTyping();addMsg('agent','⚠️ '+e.message);enableIn();}
+}
 
-  function updateProgress(current, max) {
-    const label = document.getElementById('progress-label');
-    const fill = document.getElementById('progress-bar-fill');
-    const pct = max > 0 ? Math.min((current / max) * 100, 100) : 0;
-    label.textContent = current >= max ? 'Complete ✓' : `Question ${current} of ${max}`;
-    fill.style.width = pct + '%';
-  }
+function addMsg(role,text){
+  const el=document.getElementById('chat-msgs');
+  const div=document.createElement('div');div.className='msg '+role;
+  if(role==='agent'){const av=document.createElement('div');av.className='msg-av';av.textContent='S';div.appendChild(av);}
+  const b=document.createElement('div');b.className='msg-bbl';b.innerHTML=md(text);div.appendChild(b);
+  el.appendChild(div);el.scrollTop=el.scrollHeight;
+}
 
-  function enableInput() {
-    const input = document.getElementById('user-input');
-    const btn = document.getElementById('send-btn');
-    input.disabled = false;
-    btn.disabled = false;
-    input.focus();
-  }
+function md(t){
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^---$/gm,'<hr>')
+    .replace(/\n/g,'<br>');
+}
 
-  function disableInput() {
-    document.getElementById('user-input').disabled = true;
-    document.getElementById('send-btn').disabled = true;
-  }
+function showTyping(){
+  chatBusy=true;
+  const el=document.getElementById('chat-msgs');
+  const d=document.createElement('div');d.className='msg agent';d.id='typing-msg';
+  const av=document.createElement('div');av.className='msg-av';av.textContent='S';
+  const b=document.createElement('div');b.className='msg-bbl';
+  b.innerHTML='<div class="typing-dots"><span></span><span></span><span></span></div>';
+  d.appendChild(av);d.appendChild(b);el.appendChild(d);el.scrollTop=el.scrollHeight;
+}
+function removeTyping(){chatBusy=false;const e=document.getElementById('typing-msg');if(e)e.remove();}
+function updateProg(cur,max){
+  const pct=max>0?Math.min(cur/max*100,100):0;
+  document.getElementById('cp-fill').style.width=pct+'%';
+  document.getElementById('cp-label').textContent=cur>=max?'Complete ✓':`Q ${cur} of ${max}`;
+}
+function enableIn(){document.getElementById('chat-in').disabled=false;document.getElementById('chat-send').disabled=false;document.getElementById('chat-in').focus();}
+function disableIn(){document.getElementById('chat-in').disabled=true;document.getElementById('chat-send').disabled=true;}
+function chatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,90)+'px';}
 
-  function showRestart() {
-    document.getElementById('restart-btn').style.display = 'block';
-    document.getElementById('input-area').style.display = 'none';
-    updateProgress(maxQuestions, maxQuestions);
-  }
-
-  function restart() {
-    // Reset state
-    sessionId = null; currentMode = null; questionCount = 0;
-    isComplete = false; isWaiting = false;
-    document.getElementById('messages').innerHTML = '';
-    document.getElementById('restart-btn').style.display = 'none';
-    document.getElementById('input-area').style.display = 'flex';
-    document.getElementById('mode-label').textContent = '';
-    document.getElementById('progress-label').textContent = 'Question 0 of 0';
-    document.getElementById('progress-bar-fill').style.width = '0%';
-    document.getElementById('chat-screen').style.display = 'none';
-    document.getElementById('mode-screen').style.display = 'flex';
-    enableInput();
-  }
-
-  function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  }
-
-  function autoResize(el) {
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-  }
+// ── PLAYER ─────────────────────────────────────────────────
+function playItem(item){
+  document.getElementById('p-track-name').textContent=item.n;
+  document.getElementById('p-artist').textContent=item.d||'Spotify';
+  document.getElementById('p-art').style.background=item.g;
+  document.getElementById('p-art').textContent=item.e;
+}
 </script>
 </body>
 </html>
