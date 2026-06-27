@@ -226,7 +226,7 @@ body{background:var(--bg);color:var(--text);font-family:'Circular','Helvetica Ne
     <div class="library-box">
       <div class="lib-head">Your Library</div>
       <div id="lib-items">
-        <div style="padding:10px 8px;font-size:12px;color:var(--muted)">No playlists yet.<br><span style="color:var(--green);cursor:pointer" onclick="openChat()">Set up your taste profile →</span></div>
+        <div style="padding:10px 8px;font-size:12px;color:var(--muted)">No playlists yet. <span style="color:var(--green);cursor:pointer" onclick="openChat()">Set up your taste profile →</span></div>
       </div>
     </div>
   </div>
@@ -303,7 +303,7 @@ body{background:var(--bg);color:var(--text);font-family:'Circular','Helvetica Ne
     <div class="chat-head-ico">✨</div>
     <div class="chat-head-info">
       <div class="chat-head-title">Taste Discovery</div>
-      <div class="chat-head-sub">Let's find your sound — 7 questions</div>
+      <div class="chat-head-sub">Let us understand you better</div>
     </div>
     <button class="chat-x" onclick="closeChat()">✕</button>
   </div>
@@ -464,7 +464,7 @@ function renderLibrary(items){
   const el=document.getElementById('lib-items');
   el.innerHTML='';
   if(!items.length){
-    el.innerHTML=`<div style="padding:10px 8px;font-size:12px;color:var(--muted)">No playlists yet.<br><span style="color:var(--green);cursor:pointer" onclick="openChat()">Set up your taste profile →</span></div>`;
+    el.innerHTML=`<div style="padding:10px 8px;font-size:12px;color:var(--muted)">No playlists yet. <span style="color:var(--green);cursor:pointer" onclick="openChat()">Set up your taste profile →</span></div>`;
     return;
   }
   items.forEach(item=>{
