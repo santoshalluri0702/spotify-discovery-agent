@@ -385,7 +385,6 @@ function render(){
       <div class="hero-sub">${d.hero.sub}</div>
       <div class="hero-btns">
         ${d.hero.btn?`<button class="btn-g" onclick="openChat()">${d.hero.btn}</button>`:''}
-        ${!onboarded?'<button class="btn-o" onclick="nudgeSkip()">Explore First</button>':''}
       </div>
     </div>`;
   el.appendChild(hero);
