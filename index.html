@@ -555,7 +555,12 @@ function showTyping(){
 function removeTyping(){chatBusy=false;const e=document.getElementById('typing-msg');if(e)e.remove();}
 function updateProg(cur,max){
   document.getElementById('cp-fill').style.width=(max>0?Math.min(cur/max*100,100):0)+'%';
-  document.getElementById('cp-label').textContent=cur>=max?'Complete ✓':`Q ${cur} of ${max}`;
+  let label;
+  if(cur>=max) label='Profile ready ✓';
+  else if(cur<=2) label='Getting to know you…';
+  else if(cur<=4) label='Learning your context…';
+  else label='Finding your sound…';
+  document.getElementById('cp-label').textContent=label;
 }
 function enableIn(){document.getElementById('chat-in').disabled=false;document.getElementById('chat-send').disabled=false;document.getElementById('chat-in').focus();}
 function disableIn(){document.getElementById('chat-in').disabled=true;document.getElementById('chat-send').disabled=true;}
