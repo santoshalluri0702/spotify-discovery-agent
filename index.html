@@ -548,6 +548,7 @@ async function sendChat(){
     updateProg(Math.min(chatQ-1,chatMaxQ),chatMaxQ);
     if(chatDone){
       onboarded=true;
+      applyProfileToFeed(d.message);
       setTimeout(()=>{render();document.getElementById('content').scrollTop=0;},600);
       addMsg('agent','🏠 Your home feed has been personalised — check it out!');
       document.getElementById('chat-in').disabled=true;
@@ -596,6 +597,32 @@ function enableIn(){document.getElementById('chat-in').disabled=false;document.g
 function disableIn(){document.getElementById('chat-in').disabled=true;document.getElementById('chat-send').disabled=true;}
 function chatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
 function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,90)+'px';}
+
+// ── PROFILE PARSER ─────────────────────────────────────────
+function applyProfileToFeed(text){
+  // Parse "5 Artists Picked For You" from Claude's final message
+  const artistSection=text.split(/##\s*5 Artists Picked For You/i)[1];
+  if(artistSection){
+    const emojis=['🎵','🎶','🎸','🎤','🎧','🎺','🎻','🥁'];
+    const grads=[G[0],G[1],G[2],G[3],G[4],G[5],G[6],G[7]];
+    const artists=[];
+    artistSection.split('\n').forEach(line=>{
+      const m=line.match(/^\d+[\.\)]\s*\*\*(.+?)\*\*\s*[—\-–]\s*(.+)$/);
+      if(m) artists.push({n:m[1].trim(),d:m[2].trim(),e:emojis[artists.length%emojis.length],g:grads[artists.length%grads.length]});
+    });
+    if(artists.length) AFTER.sections[0].items=artists;
+  }
+
+  // Parse Vibe + Core Genres to update hero subtitle
+  const vibe=(text.match(/\*\*Vibe\*\*[:\s]+(.+)/)||[])[1];
+  const genres=(text.match(/\*\*Core Genres\*\*[:\s]+(.+)/)||[])[1];
+  if(vibe||genres){
+    const parts=[];
+    if(vibe) parts.push(vibe.trim());
+    if(genres) parts.push(genres.trim());
+    AFTER.hero.sub=`Your taste profile is live · ${parts.join(' · ')}. Here's music we think you'll love.`;
+  }
+}
 
 // ── PLAYER ─────────────────────────────────────────────────
 function play(item){
