@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spotify AI Onboarding Agent</title>
+<style>
+  :root {
+    --green: #1DB954;
+    --green-hover: #1ed760;
+    --bg: #121212;
+    --surface: #1e1e1e;
+    --surface2: #282828;
+    --text: #FFFFFF;
+    --text-muted: #b3b3b3;
+    --bubble-user: #1DB954;
+    --bubble-agent: #282828;
+    --border: #333;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Circular', 'Helvetica Neue', Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── Header ── */
+  header {
+    width: 100%;
+    background: #000;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .spotify-logo {
+    width: 28px; height: 28px;
+    fill: var(--green);
+  }
+  header h1 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+  header span {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+
+  /* ── Mode selector screen ── */
+  #mode-screen {
+    max-width: 560px;
+    width: 100%;
+    padding: 48px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  .mode-intro h2 {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 10px;
+  }
+  .mode-intro p {
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .mode-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .mode-card {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .mode-card:hover {
+    border-color: var(--green);
+    background: #2a2a2a;
+  }
+  .mode-card .mode-title {
+    font-size: 16px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .mode-card .mode-icon {
+    font-size: 20px;
+  }
+  .mode-card .mode-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .mode-card .mode-badge {
+    font-size: 11px;
+    color: var(--green);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* ── Chat screen ── */
+  #chat-screen {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    max-width: 680px;
+    height: calc(100vh - 57px);
+  }
+
+  /* Progress bar */
+  #progress-wrap {
+    padding: 12px 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #progress-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  #progress-bar-track {
+    background: var(--border);
+    border-radius: 4px;
+    height: 4px;
+    width: 100%;
+  }
+  #progress-bar-fill {
+    background: var(--green);
+    height: 4px;
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+
+  /* Messages */
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scroll-behavior: smooth;
+  }
+  #messages::-webkit-scrollbar { width: 6px; }
+  #messages::-webkit-scrollbar-track { background: transparent; }
+  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .message {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    max-width: 85%;
+  }
+  .message.agent { align-self: flex-start; }
+  .message.user  { align-self: flex-end; flex-direction: row-reverse; }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .avatar.agent-avatar { background: var(--green); color: #000; }
+  .avatar.user-avatar  { background: var(--surface2); color: var(--text); font-size: 12px; }
+
+  .bubble {
+    padding: 12px 16px;
+    border-radius: 18px;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .agent .bubble {
+    background: var(--bubble-agent);
+    border-bottom-left-radius: 4px;
+    color: var(--text);
+  }
+  .user .bubble {
+    background: var(--bubble-user);
+    border-bottom-right-radius: 4px;
+    color: #000;
+    font-weight: 500;
+  }
+
+  /* Markdown-like rendering in agent bubble */
+  .agent .bubble h2 { font-size: 15px; margin: 10px 0 6px; color: var(--green); }
+  .agent .bubble h3 { font-size: 14px; margin: 8px 0 4px; color: var(--text-muted); }
+  .agent .bubble strong { color: var(--green); }
+  .agent .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+  .agent .bubble em { color: var(--text-muted); font-style: italic; }
+  .agent .bubble blockquote {
+    border-left: 3px solid var(--green);
+    padding-left: 10px;
+    color: var(--text-muted);
+    margin: 6px 0;
+  }
+
+  /* Typing indicator */
+  .typing-indicator { display: flex; gap: 4px; padding: 14px 16px; }
+  .typing-indicator span {
+    width: 6px; height: 6px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-6px); }
+  }
+
+  /* Input area */
+  #input-area {
+    padding: 12px 20px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    background: var(--bg);
+  }
+  #user-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 24px;
+    padding: 12px 18px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    resize: none;
+    min-height: 44px;
+    max-height: 120px;
+    line-height: 1.5;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  #user-input:focus { border-color: var(--green); }
+  #user-input::placeholder { color: var(--text-muted); }
+  #send-btn {
+    width: 44px; height: 44px;
+    background: var(--green);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, transform 0.1s;
+    flex-shrink: 0;
+    align-self: flex-end;
+  }
+  #send-btn:hover { background: var(--green-hover); }
+  #send-btn:active { transform: scale(0.94); }
+  #send-btn svg { fill: #000; width: 18px; height: 18px; }
+  #send-btn:disabled { background: var(--border); cursor: not-allowed; }
+
+  #restart-btn {
+    margin: 0 20px 16px;
+    background: transparent;
+    border: 1.5px solid var(--border);
+    border-radius: 24px;
+    padding: 10px 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    font-family: inherit;
+    display: none;
+  }
+  #restart-btn:hover { border-color: var(--green); color: var(--green); }
+
+  /* Mobile */
+  @media (max-width: 600px) {
+    .mode-intro h2 { font-size: 22px; }
+    #mode-screen { padding: 32px 16px; }
+    #messages { padding: 16px; }
+    #input-area { padding: 10px 16px 16px; }
+    .message { max-width: 92%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <svg class="spotify-logo" viewBox="0 0 168 168" xmlns="http://www.w3.org/2000/svg">
+    <path d="M84 0C37.6 0 0 37.6 0 84s37.6 84 84 84 84-37.6 84-84S130.4 0 84 0zm38.6 121.1c-1.5 2.5-4.8 3.3-7.3 1.7-20-12.2-45.2-15-74.9-8.2-2.9.7-5.7-1.1-6.4-4-.7-2.9 1.1-5.7 4-6.4 32.5-7.4 60.4-4.2 82.9 9.5 2.5 1.5 3.3 4.9 1.7 7.4zm10.3-22.9c-1.9 3.1-5.9 4-9 2.1-22.9-14.1-57.8-18.1-84.9-9.9-3.5 1.1-7.2-.9-8.3-4.4-1.1-3.5.9-7.2 4.4-8.3 30.9-9.4 69.3-4.8 95.7 11.3 3.1 1.9 4 5.9 2.1 9.2zm.9-23.8c-27.5-16.3-72.8-17.8-99-9.8-4.2 1.3-8.6-1.1-9.9-5.3-1.3-4.2 1.1-8.6 5.3-9.9 30.1-9.1 80.1-7.4 111.7 11.4 3.8 2.2 5 7.1 2.7 10.8-2.3 3.7-7.1 5-10.8 2.8z"/>
+  </svg>
+  <h1>AI Onboarding Agent</h1>
+  <span id="mode-label"></span>
+</header>
+
+<!-- MODE SELECTOR -->
+<div id="mode-screen">
+  <div class="mode-intro">
+    <h2>Personalise your Spotify experience</h2>
+    <p>Our AI agent adapts to where you are in your Spotify journey. Choose the experience that fits you.</p>
+  </div>
+  <div class="mode-cards">
+    <div class="mode-card" onclick="startMode('day_zero')">
+      <div class="mode-title"><span class="mode-icon">✨</span> Day Zero Onboarding</div>
+      <div class="mode-desc">Brand new to Spotify? We'll discover your musical taste from scratch and build a personalised profile just for you.</div>
+      <div class="mode-badge">7 questions · ~3 min</div>
+    </div>
+    <div class="mode-card" onclick="startMode('refresh')">
+      <div class="mode-title"><span class="mode-icon">🔄</span> Taste Refresh</div>
+      <div class="mode-desc">Been on Spotify for a while but recommendations feel stale? Let's check what's changed and update your profile.</div>
+      <div class="mode-badge">5 questions · ~2 min</div>
+    </div>
+    <div class="mode-card" onclick="startMode('family_duo')">
+      <div class="mode-title"><span class="mode-icon">👥</span> Family / Duo Setup</div>
+      <div class="mode-desc">Sharing your account? Getting recommendations that feel like they're for someone else? Let's separate your profiles.</div>
+      <div class="mode-badge">4 questions · ~2 min</div>
+    </div>
+  </div>
+</div>
+
+<!-- CHAT SCREEN -->
+<div id="chat-screen">
+  <div id="progress-wrap">
+    <div id="progress-label">Question 0 of 0</div>
+    <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+  </div>
+  <div id="messages"></div>
+  <button id="restart-btn" onclick="restart()">← Try another mode</button>
+  <div id="input-area">
+    <textarea id="user-input" placeholder="Type your answer…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button id="send-btn" onclick="sendMessage()" disabled>
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  let sessionId = null;
+  let currentMode = null;
+  let maxQuestions = 7;
+  let questionCount = 0;
+  let isComplete = false;
+  let isWaiting = false;
+
+  const modeLabels = {
+    day_zero: 'Day Zero Onboarding',
+    refresh: 'Taste Refresh',
+    family_duo: 'Family / Duo Setup',
+  };
+
+  async function startMode(mode) {
+    currentMode = mode;
+    document.getElementById('mode-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display = 'flex';
+    document.getElementById('mode-label').textContent = modeLabels[mode];
+
+    showTyping();
+    try {
+      const res = await fetch('/api/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to start session');
+
+      sessionId = data.session_id;
+      maxQuestions = data.max_questions;
+      questionCount = 1;
+
+      removeTyping();
+      addMessage('agent', data.message);
+      updateProgress(questionCount, maxQuestions);
+      enableInput();
+    } catch (e) {
+      removeTyping();
+      addMessage('agent', '⚠️ Could not start session: ' + e.message);
+    }
+  }
+
+  async function sendMessage() {
+    if (isWaiting || isComplete) return;
+    const input = document.getElementById('user-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = '';
+    autoResize(input);
+    addMessage('user', text);
+    disableInput();
+    showTyping();
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, message: text }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Chat error');
+
+      questionCount = data.question_count;
+      isComplete = data.is_complete;
+
+      removeTyping();
+      addMessage('agent', data.message);
+      updateProgress(Math.min(questionCount - 1, maxQuestions), maxQuestions);
+
+      if (isComplete) {
+        showRestart();
+      } else {
+        enableInput();
+      }
+    } catch (e) {
+      removeTyping();
+      addMessage('agent', '⚠️ Error: ' + e.message);
+      enableInput();
+    }
+  }
+
+  function addMessage(role, text) {
+    const wrap = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'message ' + role;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar ' + (role === 'agent' ? 'agent-avatar' : 'user-avatar');
+    avatar.textContent = role === 'agent' ? 'S' : 'You';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = renderMarkdown(text);
+
+    div.appendChild(avatar);
+    div.appendChild(bubble);
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function renderMarkdown(text) {
+    // Minimal markdown: headings, bold, italic, hr, blockquote
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      // Restore > for blockquote after escaping
+      .replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^---$/gm, '<hr>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/\n/g, '<br>');
+  }
+
+  function showTyping() {
+    isWaiting = true;
+    const wrap = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'message agent';
+    div.id = 'typing-bubble';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar agent-avatar';
+    avatar.textContent = 'S';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+
+    div.appendChild(avatar);
+    div.appendChild(bubble);
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function removeTyping() {
+    isWaiting = false;
+    const el = document.getElementById('typing-bubble');
+    if (el) el.remove();
+  }
+
+  function updateProgress(current, max) {
+    const label = document.getElementById('progress-label');
+    const fill = document.getElementById('progress-bar-fill');
+    const pct = max > 0 ? Math.min((current / max) * 100, 100) : 0;
+    label.textContent = current >= max ? 'Complete ✓' : `Question ${current} of ${max}`;
+    fill.style.width = pct + '%';
+  }
+
+  function enableInput() {
+    const input = document.getElementById('user-input');
+    const btn = document.getElementById('send-btn');
+    input.disabled = false;
+    btn.disabled = false;
+    input.focus();
+  }
+
+  function disableInput() {
+    document.getElementById('user-input').disabled = true;
+    document.getElementById('send-btn').disabled = true;
+  }
+
+  function showRestart() {
+    document.getElementById('restart-btn').style.display = 'block';
+    document.getElementById('input-area').style.display = 'none';
+    updateProgress(maxQuestions, maxQuestions);
+  }
+
+  function restart() {
+    // Reset state
+    sessionId = null; currentMode = null; questionCount = 0;
+    isComplete = false; isWaiting = false;
+    document.getElementById('messages').innerHTML = '';
+    document.getElementById('restart-btn').style.display = 'none';
+    document.getElementById('input-area').style.display = 'flex';
+    document.getElementById('mode-label').textContent = '';
+    document.getElementById('progress-label').textContent = 'Question 0 of 0';
+    document.getElementById('progress-bar-fill').style.width = '0%';
+    document.getElementById('chat-screen').style.display = 'none';
+    document.getElementById('mode-screen').style.display = 'flex';
+    enableInput();
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+</script>
+</body>
+</html>
