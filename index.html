@@ -334,7 +334,7 @@ body{background:var(--bg);color:var(--text);font-family:'Circular','Helvetica Ne
     <div class="nudge-sub" id="n-sub">Takes 2 minutes · Instantly better recommendations</div>
   </div>
   <div class="nudge-btns">
-    <button class="nbtn nbtn-go" onclick="nudgeGo()">Start</button>
+    <button class="nbtn nbtn-go" id="nudge-go-btn">Start</button>
     <button class="nbtn nbtn-skip" onclick="nudgeSkip()">Later</button>
   </div>
 </div>
@@ -396,6 +396,8 @@ const G=[
 let onboarded=false;
 let chatSid=null,chatMaxQ=7,chatQ=0,chatDone=false,chatBusy=false;
 let nudgeSkips=0,nudgeTimer=null;
+let scrollNudgeFired=false,cardHoverCount=0,cardHoverNudgeFired=false;
+let cardsHovered=new Set(),skippedNudgeFired=false;
 let profileData={vibe:'',genres:[],energy:'',context:'',discovery:'',artists:[]};
 
 // ── CONTENT DATA ───────────────────────────────────────────
@@ -504,9 +506,26 @@ function render(){
       const grid=document.createElement('div');
       grid.className=hasMore?'cards collapsed':'cards';
       sec.items.forEach(item=>{
-        const c=document.createElement('div');c.className='card';c.onclick=()=>play(item);
+        const c=document.createElement('div');c.className='card';
+        c.onclick=()=>{
+          play(item);
+          // clicking resets "all skipped" tracking
+          cardsHovered.clear();skippedNudgeFired=false;
+        };
         const aClass='card-art'+(sec.circle?' circle':'');
         c.innerHTML=`<div class="${aClass}" style="background:${item.g}">${item.e}<div class="play-fab"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div><div class="card-name">${item.n}</div><div class="card-desc">${item.d||''}</div>`;
+        // Signal 5 — card hover without profile
+        if(!onboarded) c.addEventListener('mouseenter',()=>{
+          if(cardHoverNudgeFired)return;
+          cardHoverCount++;
+          if(cardHoverCount>=2){cardHoverNudgeFired=true;showNudge('Like the look of this?','Set up your profile to see more like it');}
+        });
+        // Signal 2 — all recommendations skipped (with profile)
+        if(onboarded) c.addEventListener('mouseenter',()=>{
+          if(skippedNudgeFired)return;
+          cardsHovered.add(item.n);
+          if(cardsHovered.size>=3){skippedNudgeFired=true;showNudgeUpdate('Not feeling these picks?','Your taste may have shifted — update your profile');}
+        });
         grid.appendChild(c);
       });
       wrap.appendChild(grid);
@@ -543,13 +562,18 @@ function scheduleNudge(){
     if(!onboarded) showNudge('Set up your taste profile','Takes 2 minutes · Instantly better recommendations');
   },4000);
 }
-function showNudge(title,sub){
+function showNudge(title,sub,btnLabel='Start',btnAction=null){
   document.getElementById('n-title').textContent=title;
   document.getElementById('n-sub').textContent=sub;
+  const btn=document.getElementById('nudge-go-btn');
+  btn.textContent=btnLabel;
+  btn.onclick=btnAction||(()=>{hideNudge();openChat();});
   document.getElementById('nudge').classList.add('show');
 }
+function showNudgeUpdate(title,sub){
+  showNudge(title,sub,'Update',()=>{hideNudge();openChat();});
+}
 function hideNudge(){document.getElementById('nudge').classList.remove('show');}
-function nudgeGo(){hideNudge();openChat();}
 function nudgeSkip(){
   hideNudge();
   nudgeSkips++;
@@ -558,14 +582,28 @@ function nudgeSkip(){
   }
 }
 
-// ── SEARCH NUDGE ───────────────────────────────────────────
+// ── SEARCH NUDGE (signal 1 with-profile / signal for without-profile) ──
 let searchT=null;
 function onSearchKey(e){
   if(e.key!=='Enter')return;
   const q=document.getElementById('search-in').value.trim();
-  if(!q||onboarded)return;
+  if(!q)return;
   clearTimeout(searchT);
-  searchT=setTimeout(()=>showNudge(`Couldn't find great results for "${q}"`,'Your taste profile would help us show better matches'),1500);
+  if(!onboarded){
+    searchT=setTimeout(()=>showNudge(`Couldn't find results for "${q}"`,'Your taste profile would help us show better matches'),1500);
+  }else{
+    searchT=setTimeout(()=>showNudgeUpdate('Still searching?','Your recommendations may need a refresh — update your taste profile'),1500);
+  }
+}
+
+// ── SCROLL DEPTH (signal 4 — without profile) ──────────────
+function onScrollDepth(){
+  if(scrollNudgeFired||onboarded)return;
+  if(document.getElementById('content').scrollTop>220){
+    scrollNudgeFired=true;
+    showNudge('The more we know you, the better these get','Set up your taste profile in 2 minutes');
+    document.getElementById('content').removeEventListener('scroll',onScrollDepth);
+  }
 }
 
 // ── CHAT ───────────────────────────────────────────────────
@@ -615,6 +653,7 @@ async function sendChat(){
       clearTimeout(nudgeTimer);
       hideNudge();
       applyProfileToFeed(d.message);
+      saveState();
       document.getElementById('chat-in').disabled=true;
       document.getElementById('chat-send').disabled=true;
       document.getElementById('cp-label').textContent='Profile ready ✓';
@@ -752,6 +791,56 @@ function renderProfilePanel(){
   }
 }
 
+// ── PERSISTENCE ────────────────────────────────────────────
+function saveState(){
+  localStorage.setItem('sp_onboarded', localStorage.getItem('sp_onboarded')||String(Date.now()));
+  localStorage.setItem('sp_profile', JSON.stringify(profileData));
+}
+
+function restoreState(){
+  const ts=localStorage.getItem('sp_onboarded');
+  const saved=localStorage.getItem('sp_profile');
+  if(!ts||!saved)return;
+  try{
+    profileData=JSON.parse(saved);
+    onboarded=true;
+    if(profileData.artists&&profileData.artists.length)
+      AFTER.sections[0].items=profileData.artists.map(a=>({n:a.n,d:a.d,e:a.e,g:a.g}));
+    const parts=[];
+    if(profileData.vibe) parts.push(profileData.vibe);
+    if(profileData.genres&&profileData.genres.length) parts.push(profileData.genres.join(', '));
+    if(parts.length) AFTER.hero.sub=`Your taste profile is live · ${parts.join(' · ')}. Here's music we think you'll love.`;
+  }catch(e){}
+}
+
+// ── NUDGE INIT (all 6 signals) ─────────────────────────────
+function initNudges(){
+  const isNewSession=!sessionStorage.getItem('sp_session');
+  sessionStorage.setItem('sp_session','1');
+  const prevVisited=localStorage.getItem('sp_visited');
+  localStorage.setItem('sp_visited',String(Date.now()));
+
+  if(!onboarded){
+    // Signal 1 — time on page (existing scheduleNudge)
+    scheduleNudge();
+    // Signal 6 — return visit
+    if(isNewSession&&prevVisited)
+      setTimeout(()=>{if(!onboarded)showNudge('Welcome back — your profile is still waiting','Pick up where you left off · takes 2 minutes');},2000);
+    // Signal 4 — scroll depth
+    document.getElementById('content').addEventListener('scroll',onScrollDepth,{passive:true});
+    // Signals 5 (card hover) wired in render()
+  }else{
+    // Signal 3 — profile age 30+ days (proactive)
+    const profileTs=parseInt(localStorage.getItem('sp_onboarded')||'0');
+    if(isNewSession&&profileTs){
+      const days=(Date.now()-profileTs)/(1000*60*60*24);
+      if(days>=30)
+        setTimeout(()=>showNudgeUpdate('Your taste profile is a month old','Music moves fast — want to refresh it?'),3000);
+    }
+    // Signals 1 (failed search) and 2 (all skipped) wired in onSearchKey + render()
+  }
+}
+
 // ── PLAYER ─────────────────────────────────────────────────
 function play(item){
   document.getElementById('p-track-name').textContent=item.n;
@@ -761,8 +850,9 @@ function play(item){
 }
 
 // ── INIT ───────────────────────────────────────────────────
+restoreState();
 render();
-scheduleNudge();
+initNudges();
 </script>
 </body>
 </html>
