@@ -780,7 +780,11 @@ function buildAfterSections(p){
   const secs=[];
 
   if(p.artists&&p.artists.length){
-    secs.push({title:'✨ Based on Your Taste Profile',type:'cards',hl:true,circle:true,
+    const regionalLabel=p.regionalPref==='Regional focus'?'Tuned for your regional sound'
+      :p.regionalPref==='Global explorer'?'Curated for global discovery'
+      :p.regionalPref?'A regional and global mix':'';
+    const secTitle='✨ Based on Your Taste Profile'+(regionalLabel?` · ${regionalLabel}`:'');
+    secs.push({title:secTitle,type:'cards',hl:true,circle:true,
       items:p.artists.map(a=>({n:a.n,d:a.d,e:a.e,g:a.g}))});
   }
 
