@@ -931,6 +931,7 @@ function play(item){
 }
 
 // ── INIT ───────────────────────────────────────────────────
+fetch('/api/health').catch(()=>{});
 restoreState();
 render();
 initNudges();
