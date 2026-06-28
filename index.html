@@ -780,16 +780,17 @@ function buildAfterSections(p){
   const secs=[];
 
   if(p.artists&&p.artists.length){
-    const regionalLabel=p.regionalPref==='Regional focus'?'Tuned for your regional sound'
-      :p.regionalPref==='Global explorer'?'Curated for global discovery'
-      :p.regionalPref?'A regional and global mix':'';
+    const regionalLabel=p.regionalPref==='Regional focus'?'Regional sound'
+      :p.regionalPref==='Global explorer'?'Global discovery'
+      :p.regionalPref?'Regional & global mix':'';
     const secTitle='✨ Based on Your Taste Profile'+(regionalLabel?` · ${regionalLabel}`:'');
     secs.push({title:secTitle,type:'cards',hl:true,circle:true,
       items:p.artists.map(a=>({n:a.n,d:a.d,e:a.e,g:a.g}))});
   }
 
   if(anchor){
-    secs.push({title:`Because you love ${anchor}`,type:'cards',circle:true,items:[
+    const anchorShort=anchor.length>20?anchor.split(/[\s,\(]/)[0]:anchor;
+    secs.push({title:`Because you love ${anchorShort}`,type:'cards',circle:true,items:[
       {n:`${anchor} Radio`,d:`Continuous music inspired by ${anchor}`,e:'📻',g:G[1]},
       {n:`${anchor} Essentials`,d:'The defining tracks that shaped their sound',e:'⭐',g:G[6]},
       {n:`Artists Like ${anchor}`,d:'Similar artists you have not discovered yet',e:'🔍',g:G[3]},
