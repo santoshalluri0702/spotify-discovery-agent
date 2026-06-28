@@ -97,11 +97,13 @@ Produce this immediately after your last question is answered (or after Q6 if sk
 
 ## 5 Artists Picked For You
 
-1. **[Artist]** — [1 sentence linking this artist specifically to something they said]
-2. **[Artist]** — [1 sentence]
-3. **[Artist]** — [1 sentence]
-4. **[Artist]** — [1 sentence]
-5. **[Artist]** — [1 sentence]
+1. **[Artist]** [Regional] — [1 sentence linking this artist specifically to something they said]
+2. **[Artist]** [International] — [1 sentence]
+3. **[Artist]** [Regional/International] — [1 sentence]
+4. **[Artist]** [Regional/International] — [1 sentence]
+5. **[Artist]** [Regional/International] — [1 sentence]
+
+Tag each artist [Regional] if they are from the user's home region or country (infer from artists they mentioned), or [International] if they are from outside that region. If you cannot determine the user's region, omit the tag.
 
 ---
 *Your Spotify home feed is now personalised. Welcome.*
