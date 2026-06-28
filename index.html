@@ -228,6 +228,10 @@ body{background:var(--bg);color:var(--text);font-family:'Circular','Helvetica Ne
 /* ── SHOW ALL COLLAPSED ── */
 .cards.collapsed .card:nth-child(n+5){display:none}
 
+/* ── FEED REVEAL ANIMATION ── */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.section.reveal{opacity:0;animation:fadeInUp .45s ease forwards}
+
 /* ── RESPONSIVE ── */
 @media(max-width:900px){
   #sidebar{display:none}
@@ -403,7 +407,11 @@ let chatSid=null,chatMaxQ=7,chatQ=0,chatDone=false,chatBusy=false;
 let nudgeSkips=0,nudgeTimer=null;
 let scrollNudgeFired=false,cardHoverCount=0,cardHoverNudgeFired=false;
 let cardsHovered=new Set(),skippedNudgeFired=false;
-let profileData={vibe:'',genres:[],energy:'',context:'',discovery:'',artists:[]};
+let feedReveal=false;
+let profileData={vibe:'',genres:[],energy:'',context:'',discovery:'',regionalPref:'',artists:[]};
+
+// ── ACK PHRASES (instant response feel) ───────────────────
+const ACK_PHRASES=['Got it…',"That’s a useful signal…",'Interesting…','Makes sense…','Good to know…'];
 
 // ── CONTENT DATA ───────────────────────────────────────────
 const BEFORE={
@@ -490,9 +498,10 @@ function render(){
   renderLibrary(onboarded?(AFTER.library||[]):[]);
 
   // sections
-  d.sections.forEach(sec=>{
+  d.sections.forEach((sec,si)=>{
     const wrap=document.createElement('div');
     wrap.className=sec.hl?'section hl':'section';
+    if(onboarded&&feedReveal){wrap.classList.add('reveal');wrap.style.animationDelay=(si*0.13)+'s';}
     const hasMore=sec.type!=='quick'&&sec.items&&sec.items.length>4;
     const head=document.createElement('div');
     head.className='sec-head';
@@ -518,8 +527,7 @@ function render(){
           cardsHovered.clear();skippedNudgeFired=false;
         };
         const aClass='card-art'+(sec.circle?' circle':'');
-        const pill=item.cat?`<span class="card-pill ${item.cat==='Regional'?'pill-r':'pill-i'}">${item.cat}</span>`:'';
-        c.innerHTML=`<div class="${aClass}" style="background:${item.g}">${item.e}<div class="play-fab"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div><div class="card-name">${item.n}</div>${pill}<div class="card-desc">${item.d||''}</div>`;
+        c.innerHTML=`<div class="${aClass}" style="background:${item.g}">${item.e}<div class="play-fab"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div><div class="card-name">${item.n}</div><div class="card-desc">${item.d||''}</div>`;
         // Signal 5 — card hover without profile
         if(!onboarded) c.addEventListener('mouseenter',()=>{
           if(cardHoverNudgeFired)return;
@@ -623,14 +631,27 @@ function openChat(){
   document.getElementById('chat-send').disabled=true;
   chatSid=null;chatQ=0;chatDone=false;chatBusy=false;
   document.getElementById('chat-panel').classList.add('open');
-  startChat();
+  if(onboarded&&profileData.vibe){
+    const ctx=JSON.stringify({
+      vibe:profileData.vibe,
+      genres:profileData.genres,
+      energy:profileData.energy,
+      anchor:profileData.artists&&profileData.artists[0]?profileData.artists[0].n:null,
+      regionalPref:profileData.regionalPref||null,
+    });
+    startChat('update',ctx);
+  }else{
+    startChat('day_zero');
+  }
 }
 function closeChat(){document.getElementById('chat-panel').classList.remove('open');}
 
-async function startChat(){
+async function startChat(mode,profileContext){
   showTyping();
   try{
-    const r=await fetch('/api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'day_zero'})});
+    const body={mode:mode||'day_zero'};
+    if(profileContext) body.profile_context=profileContext;
+    const r=await fetch('/api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();
     if(!r.ok)throw new Error(d.detail||'Failed to start');
     chatSid=d.session_id;chatMaxQ=d.max_questions;chatQ=1;
@@ -646,13 +667,18 @@ async function sendChat(){
   const inp=document.getElementById('chat-in');
   const txt=inp.value.trim();if(!txt)return;
   inp.value='';autoResize(inp);
-  addMsg('user',txt);disableIn();showTyping();
+  addMsg('user',txt);disableIn();
+  const phrase=ACK_PHRASES[Math.min(chatQ-1,ACK_PHRASES.length-1)];
+  const ackBbl=addMsgBubble('agent',phrase);
+  chatBusy=true;
   try{
     const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:chatSid,message:txt})});
     const d=await r.json();
     if(!r.ok)throw new Error(d.detail||'Chat error');
     chatQ=d.question_count;chatDone=d.is_complete;
-    removeTyping();addMsg('agent',d.message);
+    chatBusy=false;
+    ackBbl.innerHTML=md(d.message);
+    document.getElementById('chat-msgs').scrollTop=document.getElementById('chat-msgs').scrollHeight;
     updateProg(Math.min(chatQ-1,chatMaxQ),chatMaxQ);
     if(chatDone){
       onboarded=true;
@@ -663,22 +689,30 @@ async function sendChat(){
       document.getElementById('chat-in').disabled=true;
       document.getElementById('chat-send').disabled=true;
       document.getElementById('cp-label').textContent='Profile ready ✓';
+      feedReveal=true;
       setTimeout(()=>{
         closeChat();
         render();
+        feedReveal=false;
         document.getElementById('content').scrollTop=0;
       },5000);
     }else{enableIn();}
-  }catch(e){removeTyping();addMsg('agent','⚠️ '+e.message);enableIn();}
+  }catch(e){
+    chatBusy=false;
+    ackBbl.innerHTML=md('⚠️ '+e.message);
+    enableIn();
+  }
 }
 
-function addMsg(role,text){
+function addMsgBubble(role,text){
   const el=document.getElementById('chat-msgs');
   const div=document.createElement('div');div.className='msg '+role;
   if(role==='agent'){const av=document.createElement('div');av.className='msg-av';av.textContent='S';div.appendChild(av);}
   const b=document.createElement('div');b.className='msg-bbl';b.innerHTML=md(text);div.appendChild(b);
   el.appendChild(div);el.scrollTop=el.scrollHeight;
+  return b;
 }
+function addMsg(role,text){addMsgBubble(role,text);}
 function md(t){
   return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/^## (.+)$/gm,'<h2>$1</h2>')
@@ -717,14 +751,9 @@ function applyProfileToFeed(text){
   const artists=[];
   text.split('\n').forEach(line=>{
     const t=line.trim();
-    // Try tagged format: 1. **Artist** [Regional] — desc
-    let m=t.match(/^\d+[\.\)]\s*\*\*(.+?)\*\*\s*\[(Regional|International)\]\s*[—–\-]+\s*(.+)$/);
-    if(m&&artists.length<5){artists.push({n:m[1].trim(),cat:m[2],d:m[3].trim(),e:emojis[artists.length],g:G[artists.length],idx:artists.length+1});return;}
-    // Fallback: no tag
-    m=t.match(/^\d+[\.\)]\s*\*\*(.+?)\*\*\s*[—–\-]+\s*(.+)$/);
-    if(m&&artists.length<5) artists.push({n:m[1].trim(),cat:null,d:m[2].trim(),e:emojis[artists.length],g:G[artists.length],idx:artists.length+1});
+    let m=t.match(/^\d+[\.\)]\s*\*\*(.+?)\*\*\s*[—–\-]+\s*(.+)$/);
+    if(m&&artists.length<5) artists.push({n:m[1].trim(),d:m[2].trim(),e:emojis[artists.length],g:G[artists.length],idx:artists.length+1});
   });
-  if(artists.length) AFTER.sections[0].items=artists.map(a=>({n:a.n,d:a.d,e:a.e,g:a.g}));
 
   const vibe=((text.match(/\*\*Vibe\*\*[:\s]+(.+)/)||[])[1]||'').trim();
   const genreRaw=((text.match(/\*\*Core Genres\*\*[:\s]+(.+)/)||[])[1]||'').trim();
@@ -732,13 +761,65 @@ function applyProfileToFeed(text){
   const energy=((text.match(/\*\*Energy Level\*\*[:\s]+(.+)/)||[])[1]||'').trim();
   const context=((text.match(/\*\*Listening Context\*\*[:\s]+(.+)/)||[])[1]||'').trim();
   const discovery=((text.match(/\*\*Discovery Appetite\*\*[:\s]+(.+)/)||[])[1]||'').trim();
+  const regionalPref=((text.match(/\*\*Regional Preference\*\*[:\s]+(.+)/)||[])[1]||'').trim();
 
-  profileData={vibe,genres,energy,context,discovery,artists};
+  profileData={vibe,genres,energy,context,discovery,regionalPref,artists};
+  buildAfterSections(profileData);
 
   const parts=[];
   if(vibe) parts.push(vibe);
   if(genres.length) parts.push(genres.join(', '));
   if(parts.length) AFTER.hero.sub=`Your taste profile is live · ${parts.join(' · ')}. Here's music we think you'll love.`;
+}
+
+// ── DYNAMIC AFTER SECTIONS ─────────────────────────────────
+function buildAfterSections(p){
+  const anchor=p.artists&&p.artists[0]?p.artists[0].n:null;
+  const firstGenre=p.genres&&p.genres[0]?p.genres[0]:null;
+  const vibe=p.vibe||null;
+  const secs=[];
+
+  if(p.artists&&p.artists.length){
+    secs.push({title:'✨ Based on Your Taste Profile',type:'cards',hl:true,circle:true,
+      items:p.artists.map(a=>({n:a.n,d:a.d,e:a.e,g:a.g}))});
+  }
+
+  if(anchor){
+    secs.push({title:`Because you love ${anchor}`,type:'cards',circle:true,items:[
+      {n:`${anchor} Radio`,d:`Continuous music inspired by ${anchor}`,e:'📻',g:G[1]},
+      {n:`${anchor} Essentials`,d:'The defining tracks that shaped their sound',e:'⭐',g:G[6]},
+      {n:`Artists Like ${anchor}`,d:'Similar artists you have not discovered yet',e:'🔍',g:G[3]},
+      {n:`${firstGenre||'Genre'} Deep Cuts`,d:'Hidden gems from the same world',e:'💎',g:G[7]},
+      {n:'Fan Favourites',d:`What fans of ${anchor} listen to most`,e:'❤️',g:G[4]},
+    ]});
+  }
+
+  if(vibe){
+    secs.push({title:`Your mood: ${vibe}`,type:'cards',items:[
+      {n:`${vibe} Playlist`,d:'A curated mix that matches your vibe',e:'🎭',g:G[2]},
+      {n:'Chill Afternoon',d:'Perfect for winding down',e:'☀️',g:G[5]},
+      {n:'Focus Flow',d:'Music to keep you in the zone',e:'🎯',g:G[0]},
+      {n:'Late Night Feels',d:'Deep cuts for quiet hours',e:'🌙',g:G[3]},
+    ]});
+  }
+
+  if(firstGenre){
+    secs.push({title:`New releases in ${firstGenre}`,type:'cards',items:[
+      {n:"This Week's Drops",d:`Fresh ${firstGenre} releases just landed`,e:'🆕',g:G[4]},
+      {n:'Rising Artists',d:`New voices in ${firstGenre} you should know`,e:'📈',g:G[1]},
+      {n:"Editor's Picks",d:`Our curators' favourite new ${firstGenre} tracks`,e:'🎯',g:G[6]},
+      {n:'Hidden Gems',d:`Underplayed ${firstGenre} tracks worth your time`,e:'💫',g:G[2]},
+    ]});
+  }
+
+  secs.push({title:'Made for Alex · Daily Mixes',type:'cards',items:[
+    {n:'Daily Mix 1',d:anchor?`${anchor} and more`:'Your top artists and more',e:'1️⃣',g:G[0]},
+    {n:'Daily Mix 2',d:'Chill picks for focus and evenings',e:'🌙',g:G[3]},
+    {n:'Discovery Mix',d:"Fresh artists we think you'll love",e:'🔭',g:G[2]},
+    {n:'Mood Boost',d:'Upbeat picks for when you need energy',e:'⚡',g:G[5]},
+  ]});
+
+  AFTER.sections=secs;
 }
 
 // ── PROFILE PANEL ──────────────────────────────────────────
@@ -772,6 +853,7 @@ function renderProfilePanel(){
   const stats=[];
   if(p.energy) stats.push({l:'Energy level',v:p.energy});
   if(p.discovery) stats.push({l:'Discovery',v:p.discovery});
+  if(p.regionalPref) stats.push({l:'Regional preference',v:p.regionalPref});
   if(p.context) stats.push({l:'Listening context',v:p.context,full:true});
   if(stats.length){
     const s=document.createElement('div');s.className='pp-section';
@@ -781,18 +863,8 @@ function renderProfilePanel(){
 
   if(p.artists.length){
     const s=document.createElement('div');s.className='pp-section';
-    s.innerHTML='<div class="pp-label">Your picks</div>';
-    const regional=p.artists.filter(a=>a.cat==='Regional');
-    const intl=p.artists.filter(a=>a.cat==='International');
-    const other=p.artists.filter(a=>!a.cat);
-    function catHtml(list,cls,label,badge){
-      if(!list.length) return '';
-      return `<div class="pp-cat-head ${cls}"><span class="pp-cat-label">${label}</span><div class="pp-cat-line"></div><span class="pp-cat-badge">${badge}</span></div>`
-        +list.map(a=>`<div class="pp-artist"><div class="pp-artist-num">${a.idx}</div><div class="pp-artist-art" style="background:${a.g}">${a.e}</div><div><div class="pp-artist-name">${a.n}</div><div class="pp-artist-why">${a.d}</div></div></div>`).join('');
-    }
-    s.innerHTML+=catHtml(regional,'pp-regional','Regional','South Indian')
-      +catHtml(intl,'pp-intl','International','Global')
-      +catHtml(other,'pp-default','Also for you','Picks');
+    s.innerHTML='<div class="pp-label">Your picks</div>'
+      +p.artists.map(a=>`<div class="pp-artist"><div class="pp-artist-num">${a.idx}</div><div class="pp-artist-art" style="background:${a.g}">${a.e}</div><div><div class="pp-artist-name">${a.n}</div><div class="pp-artist-why">${a.d}</div></div></div>`).join('');
     body.appendChild(s);
   }
 }
@@ -810,8 +882,7 @@ function restoreState(){
   try{
     profileData=JSON.parse(saved);
     onboarded=true;
-    if(profileData.artists&&profileData.artists.length)
-      AFTER.sections[0].items=profileData.artists.map(a=>({n:a.n,d:a.d,e:a.e,g:a.g}));
+    buildAfterSections(profileData);
     const parts=[];
     if(profileData.vibe) parts.push(profileData.vibe);
     if(profileData.genres&&profileData.genres.length) parts.push(profileData.genres.join(', '));
