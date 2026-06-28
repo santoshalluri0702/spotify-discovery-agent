@@ -508,6 +508,8 @@ function onSearchKey(e){
 
 // ── CHAT ───────────────────────────────────────────────────
 function openChat(){
+  hideNudge();
+  clearTimeout(nudgeTimer);
   document.getElementById('chat-msgs').innerHTML='';
   document.getElementById('cp-fill').style.width='0%';
   document.getElementById('cp-label').textContent='Starting…';
@@ -548,13 +550,17 @@ async function sendChat(){
     updateProg(Math.min(chatQ-1,chatMaxQ),chatMaxQ);
     if(chatDone){
       onboarded=true;
+      clearTimeout(nudgeTimer);
+      hideNudge();
       applyProfileToFeed(d.message);
-      setTimeout(()=>{render();document.getElementById('content').scrollTop=0;},600);
-      addMsg('agent','🏠 Your home feed has been personalised — check it out!');
       document.getElementById('chat-in').disabled=true;
       document.getElementById('chat-send').disabled=true;
-      document.getElementById('cp-label').textContent='Complete ✓';
-      setTimeout(closeChat,3500);
+      document.getElementById('cp-label').textContent='Profile ready ✓';
+      setTimeout(()=>{
+        closeChat();
+        render();
+        document.getElementById('content').scrollTop=0;
+      },2000);
     }else{enableIn();}
   }catch(e){removeTyping();addMsg('agent','⚠️ '+e.message);enableIn();}
 }
