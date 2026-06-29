@@ -606,7 +606,7 @@ function onSearchKey(e){
   if(!onboarded){
     searchT=setTimeout(()=>showNudge(`Couldn't find results for "${q}"`,'Your taste profile would help us show better matches'),1500);
   }else{
-    searchT=setTimeout(()=>showNudgeUpdate('Still searching?','Your recommendations may need a refresh — update your taste profile'),1500);
+    searchT=setTimeout(()=>showNudgeUpdate(`Couldn't find "${q}"?`,'Your picks may need a refresh — update your taste profile'),1500);
   }
 }
 
