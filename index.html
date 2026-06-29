@@ -510,7 +510,7 @@ function render(){
       <div class="hero-artist-label">Your top pick</div>
       <div class="hero-artist-ring"><div class="hero-artist-inner">${topArtist.e||'🎵'}</div></div>
       <div class="hero-artist-name">${topArtist.n}</div>
-      ${topArtist.g?`<div class="hero-artist-meta">${topArtist.g}</div>`:''}
+      ${profileData.genres&&profileData.genres[0]?`<div class="hero-artist-meta">${profileData.genres[0]}</div>`:''}
     </div>`:''}`;
   el.appendChild(hero);
 
