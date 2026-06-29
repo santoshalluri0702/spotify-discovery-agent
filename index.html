@@ -617,7 +617,9 @@ function renderLibrary(items){
   const el=document.getElementById('lib-items');
   el.innerHTML='';
   if(!items.length){
-    el.innerHTML=`<div style="padding:10px 8px;font-size:12px;color:var(--muted)">No playlists yet. <span style="color:var(--green);cursor:pointer" onclick="openChat()">Set up your taste profile →</span></div>`;
+    el.innerHTML=onboarded
+      ?`<div style="padding:10px 8px;font-size:12px;color:var(--muted)">Your playlists will appear here</div>`
+      :`<div style="padding:10px 8px;font-size:12px;color:var(--muted)">No playlists yet. <span style="color:var(--green);cursor:pointer" onclick="openChat()">Set up your taste profile →</span></div>`;
     return;
   }
   items.forEach(item=>{
