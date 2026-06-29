@@ -13,6 +13,7 @@ Then open: http://localhost:8000
 
 import os
 import uuid
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -306,7 +307,10 @@ async def start_session(req: StartRequest):
 
     system = _SYSTEM_PROMPTS[req.mode]
     if req.mode == "update" and req.profile_context:
-        user_kickoff = f"[SYSTEM: This is a profile UPDATE session. The user's existing profile: {req.profile_context}. current_question=1. Please greet the user warmly, reference their prior profile, and ask your first question.]"
+        ctx = json.loads(req.profile_context)
+        rejected = ctx.get("rejectedArtists", [])
+        rejected_note = f" The user gave a thumbs down to these recommended artists: {', '.join(rejected)}. Open by acknowledging what felt off and ask what specifically did not land." if rejected else ""
+        user_kickoff = f"[SYSTEM: This is a profile UPDATE session. The user's existing profile: {req.profile_context}.{rejected_note} current_question=1. Please greet the user warmly, reference their prior profile, and ask your first question.]"
     else:
         user_kickoff = "[SYSTEM: This is the start of the session. current_question=1. Please greet the user and ask your first question.]"
 

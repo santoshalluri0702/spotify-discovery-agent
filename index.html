@@ -92,6 +92,15 @@ body{background:var(--bg);color:var(--text);font-family:'Circular','Helvetica Ne
 .card-pill.pill-r{background:rgba(29,185,84,.15);color:#1DB954;border:0.5px solid rgba(29,185,84,.35)}
 .card-pill.pill-i{background:rgba(167,139,250,.15);color:#a78bfa;border:0.5px solid rgba(167,139,250,.35)}
 .card-desc{font-size:12px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-reactions{display:flex;justify-content:center;gap:6px;margin-top:8px}
+.react-e{width:32px;height:32px;border-radius:50%;border:0.5px solid var(--s2);background:var(--s1);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;position:relative;transition:border-color .15s,background .15s}
+.react-e:hover{border-color:var(--muted)}
+.react-e.r-love{background:rgba(255,80,80,.12);border-color:rgba(255,80,80,.4)}
+.react-e.r-like{background:rgba(29,185,84,.12);border-color:rgba(29,185,84,.4)}
+.react-e.r-maybe{background:rgba(180,150,60,.12);border-color:rgba(180,150,60,.4)}
+.react-e.r-skip{background:rgba(220,50,50,.12);border-color:rgba(220,50,50,.4)}
+.badge-q{position:absolute;top:-3px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--muted);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:var(--bg);border:1.5px solid var(--s0)}
+.card.dismissed{opacity:0.35}
 
 /* ── QUICK ROW ── */
 .quick-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -407,6 +416,7 @@ let chatSid=null,chatMaxQ=7,chatQ=0,chatDone=false,chatBusy=false;
 let nudgeSkips=0,nudgeTimer=null;
 let scrollNudgeFired=false,cardHoverCount=0,cardHoverNudgeFired=false;
 let cardsHovered=new Set(),skippedNudgeFired=false;
+let cardReactions={};  // {artistName: 'love'|'like'|'maybe'|'skip'}
 let feedReveal=false;
 let profileData={vibe:'',genres:[],energy:'',context:'',discovery:'',regionalPref:'',artists:[]};
 
@@ -527,16 +537,22 @@ function render(){
           cardsHovered.clear();skippedNudgeFired=false;
         };
         const aClass='card-art'+(sec.circle?' circle':'');
-        c.innerHTML=`<div class="${aClass}" style="background:${item.g}">${item.e}<div class="play-fab"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div><div class="card-name">${item.n}</div><div class="card-desc">${item.d||''}</div>`;
+        const reactRow=sec.reactions?`<div class="card-reactions">
+          <button class="react-e" onclick="setReaction(event,'${item.n}','love')">🔥</button>
+          <button class="react-e" onclick="setReaction(event,'${item.n}','like')">👍</button>
+          <button class="react-e" onclick="setReaction(event,'${item.n}','maybe')" style="position:relative">🤔<span class="badge-q">?</span></button>
+          <button class="react-e" onclick="setReaction(event,'${item.n}','skip')">👎</button>
+        </div>`:'';
+        c.innerHTML=`<div class="${aClass}" style="background:${item.g}">${item.e}<div class="play-fab"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div><div class="card-name">${item.n}</div><div class="card-desc">${item.d||''}</div>${reactRow}`;
         // Signal 5 — card hover without profile
         if(!onboarded) c.addEventListener('mouseenter',()=>{
           if(cardHoverNudgeFired)return;
           cardHoverCount++;
           if(cardHoverCount>=2){cardHoverNudgeFired=true;showNudge('Like the look of this?','Set up your profile to see more like it');}
         });
-        // Signal 2 — all recommendations skipped (with profile)
+        // Signal 2 — all recommendations skipped (with profile), suppressed once user has reacted
         if(onboarded) c.addEventListener('mouseenter',()=>{
-          if(skippedNudgeFired)return;
+          if(skippedNudgeFired||Object.keys(cardReactions).length>0)return;
           cardsHovered.add(item.n);
           if(cardsHovered.size>=3){skippedNudgeFired=true;showNudgeUpdate('Not feeling these picks?','Your taste may have shifted — update your profile');}
         });
@@ -553,6 +569,27 @@ function render(){
     el.appendChild(wrap);
   });
   if(onboarded) hideNudge();
+}
+
+function setReaction(e,artistName,reaction){
+  e.stopPropagation();
+  const btn=e.currentTarget;
+  const card=btn.closest('.card');
+  const allBtns=card.querySelectorAll('.react-e');
+  const prev=cardReactions[artistName];
+  allBtns.forEach(b=>b.className='react-e');
+  if(prev===reaction){
+    delete cardReactions[artistName];
+    card.classList.remove('dismissed');
+  }else{
+    cardReactions[artistName]=reaction;
+    btn.classList.add('r-'+reaction);
+    card.classList.toggle('dismissed',reaction==='skip');
+    if(reaction==='skip'){
+      const skipped=Object.values(cardReactions).filter(r=>r==='skip');
+      if(skipped.length>=1) showNudgeUpdate(`Not feeling these picks?`,'Tell us what shifted — we\'ll find better matches');
+    }
+  }
 }
 
 function renderLibrary(items){
@@ -649,12 +686,14 @@ function openChat(){
       ${statGrid?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${statGrid}</div>`:''}
     `;
     msgs.appendChild(card);
+    const rejectedArtists=Object.entries(cardReactions).filter(([,r])=>r==='skip').map(([n])=>n);
     const ctx=JSON.stringify({
       vibe:profileData.vibe,
       genres:profileData.genres,
       energy:profileData.energy,
       anchor:profileData.artists&&profileData.artists[0]?profileData.artists[0].n:null,
       regionalPref:profileData.regionalPref||null,
+      rejectedArtists:rejectedArtists.length?rejectedArtists:undefined,
     });
     startChat('update',ctx);
   }else{
@@ -801,7 +840,7 @@ function buildAfterSections(p){
       :p.regionalPref==='Global explorer'?'Global discovery'
       :p.regionalPref?'Regional & global mix':'';
     const secTitle='✨ Based on Your Taste Profile'+(regionalLabel?` · ${regionalLabel}`:'');
-    secs.push({title:secTitle,type:'cards',hl:true,circle:true,
+    secs.push({title:secTitle,type:'cards',hl:true,circle:true,reactions:true,
       items:p.artists.map(a=>({n:a.n,d:a.d,e:a.e,g:a.g}))});
   }
 
