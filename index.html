@@ -762,8 +762,7 @@ async function sendChat(){
       onboarded=true;
       clearTimeout(nudgeTimer);
       hideNudge();
-      applyProfileToFeed(d.message);
-      saveState();
+      try{applyProfileToFeed(d.message);saveState();}catch(pe){console.warn('Profile parse error',pe);}
       document.getElementById('chat-in').disabled=true;
       document.getElementById('chat-send').disabled=true;
       document.getElementById('cp-label').textContent='Profile ready ✓';
