@@ -118,7 +118,7 @@ body{background:var(--bg);color:var(--text);font-family:'Circular','Helvetica Ne
 .ok-sub{font-size:12px;color:var(--muted)}
 
 /* ── NUDGE ── */
-#nudge{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--green);color:#000;border-radius:12px;padding:14px 18px;max-width:500px;width:calc(100% - 40px);box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;gap:14px;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none}
+#nudge{position:fixed;bottom:calc(100px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(20px);background:var(--green);color:#000;border-radius:12px;padding:14px 18px;max-width:500px;width:calc(100% - 40px);box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;gap:14px;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none}
 #nudge.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:all}
 .nudge-ico{font-size:22px;flex-shrink:0}
 .nudge-text{flex:1}
@@ -255,7 +255,7 @@ body{background:var(--bg);color:var(--text);font-family:'Circular','Helvetica Ne
   #content{padding:0 14px 100px}
   .hero{height:auto;min-height:200px;padding:20px}
   .hero-title{font-size:22px}
-  .hero-sub{font-size:13px;margin-bottom:14px}
+  .hero-sub{font-size:13px;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .quick-row{grid-template-columns:1fr}
   .cards{grid-template-columns:repeat(2,1fr)}
   .sec-title{font-size:17px}
@@ -666,6 +666,7 @@ function onScrollDepth(){
 function openChat(){
   hideNudge();
   clearTimeout(nudgeTimer);
+  closeProfile();
   document.getElementById('chat-msgs').innerHTML='';
   document.getElementById('cp-fill').style.width='0%';
   document.getElementById('cp-label').textContent='Starting…';
@@ -753,6 +754,7 @@ async function sendChat(){
       feedReveal=true;
       setTimeout(()=>{
         closeChat();
+        cardReactions={};
         render();
         feedReveal=false;
         document.getElementById('content').scrollTop=0;
@@ -819,6 +821,13 @@ function applyProfileToFeed(text){
     let m=t.match(/^\d+[\.\)]\s*\*\*(.+?)\*\*\s*[—–\-]+\s*(.+)$/);
     if(m&&artists.length<5) artists.push({n:m[1].trim(),d:m[2].trim(),e:emojis[artists.length],g:G[artists.length],idx:artists.length+1});
   });
+  if(artists.length===0){
+    text.split('\n').forEach(line=>{
+      const t=line.trim();
+      let m=t.match(/^\d+[\.\)]\s*(.+?)\s*[—–\-]+\s*(.+)$/);
+      if(m&&artists.length<5) artists.push({n:m[1].trim(),d:m[2].trim(),e:emojis[artists.length],g:G[artists.length],idx:artists.length+1});
+    });
+  }
 
   const vibe=((text.match(/\*\*Vibe\*\*[:\s]+(.+)/)||[])[1]||'').trim();
   const genreRaw=((text.match(/\*\*(?:Genres you love|Core Genres)\*\*[:\s]+(.+)/)||[])[1]||'').trim();
