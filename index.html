@@ -80,8 +80,8 @@ body{background:var(--bg);color:var(--text);font-family:'Circular','Helvetica Ne
 .section.hl{background:rgba(29,185,84,.05);border:1px solid rgba(29,185,84,.13);border-radius:12px;padding:16px}
 .sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .sec-title{font-size:20px;font-weight:700}
-.sec-link{font-size:12px;color:var(--muted);font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.5px}
-.sec-link:hover{color:var(--text);text-decoration:underline}
+.sec-link{font-size:12px;color:var(--green);font-weight:700;cursor:pointer;letter-spacing:.3px;border:1px solid rgba(29,185,84,.3);border-radius:20px;padding:4px 12px;transition:background .15s,border-color .15s}
+.sec-link:hover{background:rgba(29,185,84,.1);border-color:rgba(29,185,84,.6)}
 
 /* ── CARDS ── */
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:14px}
@@ -99,9 +99,9 @@ body{background:var(--bg);color:var(--text);font-family:'Circular','Helvetica Ne
 .card-pill.pill-r{background:rgba(29,185,84,.15);color:#1DB954;border:0.5px solid rgba(29,185,84,.35)}
 .card-pill.pill-i{background:rgba(167,139,250,.15);color:#a78bfa;border:0.5px solid rgba(167,139,250,.35)}
 .card-desc{font-size:12px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.card-reactions{display:flex;justify-content:center;gap:6px;margin-top:8px}
-.react-e{width:32px;height:32px;border-radius:50%;border:1px solid var(--s3);background:var(--s2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;position:relative;transition:border-color .15s,background .15s,transform .15s,box-shadow .15s}
-.react-e:hover{border-color:var(--muted);transform:scale(1.08)}
+.card-reactions{display:flex;justify-content:center;gap:4px;margin-top:10px}
+.react-e{flex:1;min-width:0;height:32px;border-radius:50px;border:1px solid var(--s3);background:var(--s2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;position:relative;transition:border-color .15s,background .15s,transform .15s,box-shadow .15s}
+.react-e:hover{border-color:var(--muted);transform:scale(1.05)}
 .react-e.r-love{background:rgba(255,80,80,.15);border-color:rgba(255,80,80,.7);box-shadow:0 0 0 3px rgba(255,80,80,.15);transform:scale(1.18)}
 .react-e.r-like{background:rgba(29,185,84,.15);border-color:rgba(29,185,84,.7);box-shadow:0 0 0 3px rgba(29,185,84,.15);transform:scale(1.18)}
 .react-e.r-maybe{background:rgba(245,166,35,.15);border-color:rgba(245,166,35,.7);box-shadow:0 0 0 3px rgba(245,166,35,.15);transform:scale(1.18)}
@@ -109,7 +109,7 @@ body{background:var(--bg);color:var(--text);font-family:'Circular','Helvetica Ne
 .card-reactions.has-reaction .react-e:not(.r-love):not(.r-like):not(.r-maybe):not(.r-skip){opacity:0.35}
 .badge-q{position:absolute;top:-3px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--muted);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:var(--bg);border:1.5px solid var(--s2)}
 .card.dismissed{opacity:0.35}
-@media(max-width:900px){.react-e{width:44px;height:44px;font-size:18px}}
+@media(max-width:900px){.react-e{height:40px;font-size:17px}}
 
 /* ── QUICK ROW ── */
 .quick-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
