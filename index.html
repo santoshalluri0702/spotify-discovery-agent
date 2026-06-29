@@ -756,11 +756,11 @@ function applyProfileToFeed(text){
   });
 
   const vibe=((text.match(/\*\*Vibe\*\*[:\s]+(.+)/)||[])[1]||'').trim();
-  const genreRaw=((text.match(/\*\*Core Genres\*\*[:\s]+(.+)/)||[])[1]||'').trim();
+  const genreRaw=((text.match(/\*\*(?:Genres you love|Core Genres)\*\*[:\s]+(.+)/)||[])[1]||'').trim();
   const genres=genreRaw?genreRaw.split(/[,·]/).map(s=>s.trim()).filter(Boolean):[];
   const energy=((text.match(/\*\*Energy Level\*\*[:\s]+(.+)/)||[])[1]||'').trim();
-  const context=((text.match(/\*\*Listening Context\*\*[:\s]+(.+)/)||[])[1]||'').trim();
-  const discovery=((text.match(/\*\*Discovery Appetite\*\*[:\s]+(.+)/)||[])[1]||'').trim();
+  const context=((text.match(/\*\*(?:When you listen|Listening Context)\*\*[:\s]+(.+)/)||[])[1]||'').trim();
+  const discovery=((text.match(/\*\*(?:How open to new music|Discovery Appetite)\*\*[:\s]+(.+)/)||[])[1]||'').trim();
   const regionalPref=((text.match(/\*\*Regional Preference\*\*[:\s]+(.+)/)||[])[1]||'').trim();
 
   profileData={vibe,genres,energy,context,discovery,regionalPref,artists};
@@ -842,6 +842,9 @@ function renderProfilePanel(){
   const body=document.getElementById('pp-body');
   body.innerHTML='';
   const p=profileData;
+  const ts=parseInt(localStorage.getItem('sp_onboarded')||'0');
+  const sub=document.querySelector('#profile-panel .pp-sub');
+  if(sub&&ts) sub.textContent=timeAgo(ts);
 
   if(p.vibe){
     const d=document.createElement('div');
@@ -857,9 +860,9 @@ function renderProfilePanel(){
 
   const stats=[];
   if(p.energy) stats.push({l:'Energy level',v:p.energy});
-  if(p.discovery) stats.push({l:'Discovery',v:p.discovery});
+  if(p.discovery) stats.push({l:'How open to new music',v:p.discovery});
   if(p.regionalPref) stats.push({l:'Regional preference',v:p.regionalPref});
-  if(p.context) stats.push({l:'Listening context',v:p.context,full:true});
+  if(p.context) stats.push({l:'When you listen',v:p.context,full:true});
   if(stats.length){
     const s=document.createElement('div');s.className='pp-section';
     s.innerHTML=`<div class="pp-label">Profile</div><div class="pp-stats">${stats.map(st=>`<div class="pp-stat${st.full?' full':''}"><div class="pp-stat-label">${st.l}</div><div class="pp-stat-val">${st.v}</div></div>`).join('')}</div>`;
@@ -876,8 +879,20 @@ function renderProfilePanel(){
 
 // ── PERSISTENCE ────────────────────────────────────────────
 function saveState(){
-  localStorage.setItem('sp_onboarded', localStorage.getItem('sp_onboarded')||String(Date.now()));
+  localStorage.setItem('sp_onboarded', String(Date.now()));
   localStorage.setItem('sp_profile', JSON.stringify(profileData));
+}
+
+function timeAgo(ts){
+  const diff=Date.now()-ts;
+  const mins=Math.floor(diff/60000);
+  const hours=Math.floor(diff/3600000);
+  const days=Math.floor(diff/86400000);
+  if(mins<2) return 'Updated just now';
+  if(mins<60) return `Updated ${mins} minutes ago`;
+  if(hours<24) return `Updated ${hours} hour${hours>1?'s':''} ago`;
+  if(days===1) return 'Updated yesterday';
+  return `Updated ${days} days ago`;
 }
 
 function restoreState(){
