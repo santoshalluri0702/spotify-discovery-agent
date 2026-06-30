@@ -408,8 +408,8 @@ def _max_questions(mode: str) -> int:
 
 def _min_questions(mode: str) -> int:
     # q_count value at which the tool first becomes available — i.e. 5 answers
-    # given for day_zero (q_count reaches 6 after the 5th answer), 3 for update.
-    return {"day_zero": 6, "update": 4}.get(mode, 1)
+    # given for day_zero (q_count reaches 6 after the 5th answer), 4 for update.
+    return {"day_zero": 6, "update": 5}.get(mode, 1)
 
 
 def _normalize_profile(profile: dict) -> dict:
