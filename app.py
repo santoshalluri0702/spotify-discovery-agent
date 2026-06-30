@@ -336,12 +336,16 @@ async def chat(req: ChatRequest):
     mode = session["mode"]
     q_count = session["question_count"]
     max_q = _max_questions(mode)
-    use_tool = mode in _TOOL_MODES
 
     # Append user message
     session["history"].append({"role": "user", "content": req.message})
     q_count += 1
     session["question_count"] = q_count
+
+    # Don't offer the tool until the minimum question count is met — makes the
+    # "Minimum N questions" rule unbreakable instead of advisory, since the model's
+    # own judgment of "I'm confident" was unreliable (saw this fire after 2 questions).
+    use_tool = mode in _TOOL_MODES and q_count >= _min_questions(mode)
 
     system = _SYSTEM_PROMPTS[mode]
     messages = list(session["history"])
@@ -400,6 +404,12 @@ async def chat(req: ChatRequest):
 
 def _max_questions(mode: str) -> int:
     return {"day_zero": 7, "update": 6, "refresh": 5, "family_duo": 4}.get(mode, 7)
+
+
+def _min_questions(mode: str) -> int:
+    # q_count value at which the tool first becomes available — i.e. 5 answers
+    # given for day_zero (q_count reaches 6 after the 5th answer), 3 for update.
+    return {"day_zero": 6, "update": 4}.get(mode, 1)
 
 
 def _normalize_profile(profile: dict) -> dict:
