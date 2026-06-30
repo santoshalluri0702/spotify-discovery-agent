@@ -783,8 +783,11 @@ async function sendChat(){
     }else{enableIn();}
   }catch(e){
     chatBusy=false;
-    ackBbl.innerHTML=md('⚠️ '+e.message);
-    enableIn();
+    const expired=/not found/i.test(e.message);
+    ackBbl.innerHTML=expired
+      ?md('⚠️ Your session expired. Please close this and click **Update your taste profile** again to restart.')
+      :md('⚠️ '+e.message);
+    if(!expired)enableIn();
   }
 }
 
@@ -849,6 +852,7 @@ function applyProfileToFeed(text){
       if(m&&artists.length<5) artists.push({n:m[1].trim(),d:m[2].trim(),e:emojis[artists.length],g:G[artists.length],idx:artists.length+1});
     });
   }
+  if(artists.length===0) console.warn('applyProfileToFeed: no artists parsed from message',text);
 
   const vibe=((text.match(/\*\*Vibe\*\*[:\s]+(.+)/)||[])[1]||'').trim();
   const genreRaw=((text.match(/\*\*(?:Genres you love|Core Genres)\*\*[:\s]+(.+)/)||[])[1]||'').trim();

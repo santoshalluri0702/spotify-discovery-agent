@@ -383,7 +383,7 @@ async def chat(req: ChatRequest):
     session["history"].append({"role": "user", "content": budget_hint})
     session["history"].append({"role": "assistant", "content": assistant_msg})
 
-    is_complete = q_count > max_q
+    is_complete = q_count > max_q or "artists picked for you" in assistant_msg.lower()
 
     return {
         "session_id": req.session_id,
