@@ -376,7 +376,7 @@ async def chat(req: ChatRequest):
         if block.type == "text":
             text_parts.append(block.text)
         elif block.type == "tool_use" and block.name == "deliver_taste_profile":
-            profile = block.input
+            profile = _normalize_profile(dict(block.input))
     assistant_text = "\n".join(text_parts).strip()
     is_complete = profile is not None
 
@@ -400,6 +400,24 @@ async def chat(req: ChatRequest):
 
 def _max_questions(mode: str) -> int:
     return {"day_zero": 7, "update": 6, "refresh": 5, "family_duo": 4}.get(mode, 7)
+
+
+def _normalize_profile(profile: dict) -> dict:
+    """Tool schemas guide the model strongly but don't hard-validate output —
+    coerce fields into the shape the frontend requires before they ever leave the API."""
+    genres = profile.get("genres")
+    if isinstance(genres, str):
+        profile["genres"] = [g.strip() for g in genres.replace("·", ",").split(",") if g.strip()]
+    elif not isinstance(genres, list):
+        profile["genres"] = []
+
+    artists = profile.get("artists")
+    if isinstance(artists, list):
+        profile["artists"] = [a for a in artists if isinstance(a, dict) and a.get("name")]
+    else:
+        profile["artists"] = []
+
+    return profile
 
 
 @app.get("/api/health")

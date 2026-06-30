@@ -423,7 +423,7 @@ const G=[
 
 // ── STATE ──────────────────────────────────────────────────
 let onboarded=false;
-let chatSid=null,chatMaxQ=7,chatQ=0,chatDone=false,chatBusy=false;
+let chatSid=null,chatMaxQ=7,chatQ=0,chatDone=false,chatBusy=false,chatMode='day_zero';
 let nudgeSkips=0,nudgeTimer=null;
 let scrollNudgeFired=false,cardHoverCount=0,cardHoverNudgeFired=false;
 let cardsHovered=new Set(),skippedNudgeFired=false;
@@ -701,7 +701,7 @@ function openChat(){
     const msgs=document.getElementById('chat-msgs');
     const card=document.createElement('div');
     card.style.cssText='background:var(--s1);border-radius:10px;padding:12px 14px;margin-bottom:4px;border:1px solid rgba(29,185,84,.2)';
-    const genreTags=(profileData.genres||[]).map(g=>`<span style="background:var(--s2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--text)">${g}</span>`).join('');
+    const genreTags=normalizeGenres(profileData.genres).map(g=>`<span style="background:var(--s2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--text)">${g}</span>`).join('');
     const statGrid=[
       profileData.energy?`<div style="background:var(--s2);border-radius:6px;padding:7px 10px"><div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Energy level</div><div style="font-weight:700;font-size:12px;color:var(--text)">${profileData.energy}</div></div>`:'',
       profileData.discovery?`<div style="background:var(--s2);border-radius:6px;padding:7px 10px"><div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">How open to new music</div><div style="font-weight:700;font-size:12px;color:var(--text)">${profileData.discovery}</div></div>`:'',
@@ -732,9 +732,10 @@ function openChat(){
 function closeChat(){document.getElementById('chat-panel').classList.remove('open');}
 
 async function startChat(mode,profileContext){
+  chatMode=mode||'day_zero';
   showTyping();
   try{
-    const body={mode:mode||'day_zero'};
+    const body={mode:chatMode};
     if(profileContext) body.profile_context=profileContext;
     const r=await fetch('/api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();
@@ -789,8 +790,9 @@ async function sendChat(){
   }catch(e){
     chatBusy=false;
     const expired=/not found/i.test(e.message);
+    const restartCta=chatMode==='update'?'Update your taste profile':'Set up your taste profile';
     ackBbl.innerHTML=expired
-      ?md('⚠️ Your session expired. Please close this and click **Update your taste profile** again to restart.')
+      ?md(`⚠️ Your session expired. Please close this and click **${restartCta}** again to restart.`)
       :md('⚠️ '+e.message);
     if(!expired)enableIn();
   }
@@ -841,12 +843,33 @@ function disableIn(){document.getElementById('chat-in').disabled=true;document.g
 function chatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
 function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,90)+'px';}
 
+// ── PROFILE NORMALIZATION ────────────────────────────────────
+// Defends against the model returning fields in the wrong shape (e.g. genres
+// as a comma string instead of an array) and self-heals corrupted localStorage.
+function normalizeGenres(g){
+  if(Array.isArray(g)) return g.filter(Boolean);
+  if(typeof g==='string') return g.split(/[,·]/).map(s=>s.trim()).filter(Boolean);
+  return [];
+}
+function normalizeProfileData(p){
+  if(!p||typeof p!=='object') return {vibe:'',genres:[],energy:'',context:'',discovery:'',regionalPref:'',artists:[]};
+  return {
+    vibe:p.vibe||'',
+    genres:normalizeGenres(p.genres),
+    energy:p.energy||'',
+    context:p.context||'',
+    discovery:p.discovery||'',
+    regionalPref:p.regionalPref||'',
+    artists:Array.isArray(p.artists)?p.artists:[],
+  };
+}
+
 // ── STRUCTURED PROFILE (primary path — backend tool-call output) ──
 function applyStructuredProfile(profile){
   const emojis=['🎵','🎶','🎸','🎤','🎧','🎺','🎻','🥁'];
-  const artists=(profile.artists||[]).slice(0,5).map((a,i)=>({n:a.name,d:a.reason,e:emojis[i],g:G[i],idx:i+1}));
+  const artists=(Array.isArray(profile.artists)?profile.artists:[]).slice(0,5).map((a,i)=>({n:a.name,d:a.reason,e:emojis[i],g:G[i],idx:i+1}));
   const vibe=profile.vibe||'';
-  const genres=profile.genres||[];
+  const genres=normalizeGenres(profile.genres);
   const energy=profile.energy||'';
   const context=profile.context||'';
   const discovery=profile.discovery||'';
@@ -976,9 +999,10 @@ function renderProfilePanel(){
     body.appendChild(d);
   }
 
-  if(p.genres.length){
+  const ppGenres=normalizeGenres(p.genres);
+  if(ppGenres.length){
     const s=document.createElement('div');s.className='pp-section';
-    s.innerHTML=`<div class="pp-label">Genres you love</div><div class="pp-tags">${p.genres.map(g=>`<span class="pp-tag">${g}</span>`).join('')}</div>`;
+    s.innerHTML=`<div class="pp-label">Genres you love</div><div class="pp-tags">${ppGenres.map(g=>`<span class="pp-tag">${g}</span>`).join('')}</div>`;
     body.appendChild(s);
   }
 
@@ -993,10 +1017,11 @@ function renderProfilePanel(){
     body.appendChild(s);
   }
 
-  if(p.artists.length){
+  const ppArtists=Array.isArray(p.artists)?p.artists:[];
+  if(ppArtists.length){
     const s=document.createElement('div');s.className='pp-section';
     s.innerHTML='<div class="pp-label">Your picks</div>'
-      +p.artists.map(a=>`<div class="pp-artist"><div class="pp-artist-num">${a.idx}</div><div class="pp-artist-art" style="background:${a.g}">${a.e}</div><div><div class="pp-artist-name">${a.n}</div><div class="pp-artist-why">${a.d}</div></div></div>`).join('');
+      +ppArtists.map(a=>`<div class="pp-artist"><div class="pp-artist-num">${a.idx}</div><div class="pp-artist-art" style="background:${a.g}">${a.e}</div><div><div class="pp-artist-name">${a.n}</div><div class="pp-artist-why">${a.d}</div></div></div>`).join('');
     body.appendChild(s);
   }
 }
@@ -1024,12 +1049,12 @@ function restoreState(){
   const saved=localStorage.getItem('sp_profile');
   if(!ts||!saved)return;
   try{
-    profileData=JSON.parse(saved);
+    profileData=normalizeProfileData(JSON.parse(saved));
     onboarded=true;
     buildAfterSections(profileData);
     const parts=[];
     if(profileData.vibe) parts.push(profileData.vibe);
-    if(profileData.genres&&profileData.genres.length) parts.push(profileData.genres.join(', '));
+    if(profileData.genres.length) parts.push(profileData.genres.join(', '));
     if(parts.length) AFTER.hero.sub=`Your taste profile is live · ${parts.join(' · ')}. Here's music we think you'll love.`;
   }catch(e){}
 }
