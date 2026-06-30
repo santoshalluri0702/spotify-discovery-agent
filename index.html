@@ -641,6 +641,7 @@ function scheduleNudge(){
   },4000);
 }
 function showNudge(title,sub,btnLabel='Start',btnAction=null){
+  if(document.getElementById('chat-panel').classList.contains('open'))return;
   document.getElementById('n-title').textContent=title;
   document.getElementById('n-sub').textContent=sub;
   const btn=document.getElementById('nudge-go-btn');
