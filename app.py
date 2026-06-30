@@ -35,6 +35,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ─── Structured final-output tool ─────────────────────────────────────────────
+# Modes that use tool-based completion instead of markdown-prose parsing.
+_TOOL_MODES = {"day_zero", "update"}
+
+_DELIVER_PROFILE_TOOL = {
+    "name": "deliver_taste_profile",
+    "description": "Submit the completed taste profile and 5 artist recommendations once enough signal has been gathered from the conversation. Call this instead of writing a markdown summary.",
+    "input_schema": {
+        "type": "object",
+        "required": ["vibe", "genres", "energy", "discovery", "regional_pref", "artists"],
+        "properties": {
+            "vibe": {"type": "string", "description": "2-3 word summary of their musical personality"},
+            "genres": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 4},
+            "energy": {"type": "string", "enum": ["Low", "Medium", "High", "Variable"]},
+            "discovery": {"type": "string", "enum": ["Open to new", "Prefers familiar", "Balanced"]},
+            "regional_pref": {"type": "string", "enum": ["Regional focus", "Global explorer", "Mix of both"]},
+            "context": {"type": "string", "description": "When and how they listen"},
+            "artists": {
+                "type": "array",
+                "minItems": 5,
+                "maxItems": 5,
+                "items": {
+                    "type": "object",
+                    "required": ["name", "reason"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "reason": {"type": "string", "description": "1 sentence linking this artist to something the user said"},
+                    },
+                },
+            },
+        },
+    },
+}
+
 # ─── In-memory session store ──────────────────────────────────────────────────
 # Maps session_id -> {"mode": str, "history": [...], "question_count": int}
 _sessions: dict = {}
@@ -87,36 +121,9 @@ That's a great pick — his soundtrack work has real range.
 **Which of his songs or albums resonates with you most?**
 
 ─── FINAL OUTPUT ────────────────────────────────────────────────────────────
-Produce this immediately after your last question is answered (or after Q6 if skipping Q7):
+Once your last question is answered (or after Q6 if skipping Q7), do NOT write a markdown summary. Instead call the deliver_taste_profile tool with the gathered profile: vibe, genres, energy, discovery, regional_pref, and exactly 5 artists (each with a name and a 1-sentence reason tied to something the user said). Use regional_pref to guide your picks: Regional focus → prioritise artists from the user's home region; Global explorer → prioritise international artists; Mix of both → balanced split. Do NOT tag artists with [Regional] or [International] labels. If the user named a specific artist or song in Q5, that artist MUST be artists[0].
 
-## Your Taste Profile
-
-**Vibe**: [2–3 word summary of their musical personality]
-
-**Genres you love**: [2–4 genres — inferred from the conversation, not just what they named]
-
-**When you listen**: [when and how they listen]
-
-**Energy Level**: [Low / Medium / High / Variable]
-
-**How open to new music**: [Open to new / Prefers familiar / Balanced]
-
-**Regional Preference**: [Regional focus / Global explorer / Mix of both]
-
----
-
-## 5 Artists Picked For You
-
-1. **[Artist]** — [1 sentence linking this artist specifically to something they said]
-2. **[Artist]** — [1 sentence]
-3. **[Artist]** — [1 sentence]
-4. **[Artist]** — [1 sentence]
-5. **[Artist]** — [1 sentence]
-
-Use the Regional Preference to guide your picks: Regional focus → prioritise artists from the user's home region; Global explorer → prioritise international artists; Mix of both → balanced split. Do NOT tag artists with [Regional] or [International] labels.
-
----
-*Your Spotify home feed is now personalised. Welcome.*
+You may also include a short warm closing line of plain text alongside the tool call, e.g. "Your Spotify home feed is now personalised. Welcome."
 
 Begin by warmly greeting the user and asking your first Layer 1 question about mood and feeling.""",
 
@@ -197,36 +204,9 @@ That's a great pick — his soundtrack work has real range.
 **Which of his songs or albums resonates with you most?**
 
 ─── FINAL OUTPUT ────────────────────────────────────────────
-Produce this immediately after your last question is answered:
+Once your last question is answered, do NOT write a markdown summary. Instead call the deliver_taste_profile tool with the refreshed profile: vibe, genres, energy, discovery, regional_pref, and exactly 5 artists (each with a name and a 1-sentence reason). Use regional_pref to guide your picks. Do NOT tag artists with [Regional] or [International] labels. If the user named a specific artist, that artist MUST be artists[0].
 
-## Your Taste Profile
-
-**Vibe**: [2–3 word summary]
-
-**Genres you love**: [2–4 genres]
-
-**When you listen**: [when and how they listen]
-
-**Energy Level**: [Low / Medium / High / Variable]
-
-**How open to new music**: [Open to new / Prefers familiar / Balanced]
-
-**Regional Preference**: [Regional focus / Global explorer / Mix of both]
-
----
-
-## 5 Artists Picked For You
-
-1. **[Artist]** — [1 sentence linking to something they said]
-2. **[Artist]** — [1 sentence]
-3. **[Artist]** — [1 sentence]
-4. **[Artist]** — [1 sentence]
-5. **[Artist]** — [1 sentence]
-
-Use the Regional Preference to guide your picks. Do NOT tag artists with [Regional] or [International] labels.
-
----
-*Your Spotify home feed has been updated. Welcome back.*
+You may also include a short warm closing line of plain text alongside the tool call, e.g. "Your Spotify home feed has been updated. Welcome back."
 
 Begin by warmly greeting the user, referencing their prior profile from the context provided, and asking your first question.""",
 
@@ -356,49 +336,66 @@ async def chat(req: ChatRequest):
     mode = session["mode"]
     q_count = session["question_count"]
     max_q = _max_questions(mode)
+    use_tool = mode in _TOOL_MODES
 
     # Append user message
     session["history"].append({"role": "user", "content": req.message})
     q_count += 1
     session["question_count"] = q_count
 
-    # Inject budget hint so Claude knows where we are
     system = _SYSTEM_PROMPTS[mode]
     messages = list(session["history"])
 
-    # Append a system hint as a trailing user message so Claude tracks budget
-    budget_hint = f"[SYSTEM: current_question={q_count}. max_questions={max_q}. {'Produce the FINAL OUTPUT now — do not ask another question.' if q_count > max_q else 'Ask the next question.'}]"
-    messages.append({"role": "user", "content": budget_hint})
-    messages.append({"role": "assistant", "content": ""})  # prime assistant turn
+    over_budget = q_count > max_q
+    hard_cap = q_count > max_q + 2  # safety net: force the tool call so the session can't run forever
 
-    # Remove the primed empty assistant turn — Anthropic API handles it
-    messages = messages[:-1]
+    budget_hint = f"[SYSTEM: current_question={q_count}. max_questions={max_q}. {'Call deliver_taste_profile now — do not ask another question.' if over_budget else 'Ask the next question.'}]"
+    messages.append({"role": "user", "content": budget_hint})
 
     import anthropic
     client = anthropic.Anthropic(api_key=api_key)
 
-    response = client.messages.create(
+    kwargs = dict(
         model="claude-haiku-4-5-20251001",
         max_tokens=1024,
         system=system,
         messages=messages,
     )
-    assistant_msg = response.content[0].text
+    if use_tool:
+        kwargs["tools"] = [_DELIVER_PROFILE_TOOL]
+        kwargs["tool_choice"] = (
+            {"type": "tool", "name": "deliver_taste_profile"} if hard_cap else {"type": "auto"}
+        )
 
-    # Save hint + assistant reply to history
+    response = client.messages.create(**kwargs)
+
+    # Split response content into text and the structured tool call (if any)
+    text_parts = []
+    profile = None
+    for block in response.content:
+        if block.type == "text":
+            text_parts.append(block.text)
+        elif block.type == "tool_use" and block.name == "deliver_taste_profile":
+            profile = block.input
+    assistant_text = "\n".join(text_parts).strip()
+    is_complete = profile is not None
+
+    # Save to history — replay only the text; the tool call ends the session so it's never replayed
     session["history"].append({"role": "user", "content": budget_hint})
-    session["history"].append({"role": "assistant", "content": assistant_msg})
+    session["history"].append({"role": "assistant", "content": assistant_text or "(profile delivered)"})
 
-    is_complete = q_count > max_q or "artists picked for you" in assistant_msg.lower()
-    print(f"[chat] session={req.session_id} q_count={q_count} max_q={max_q} is_complete={is_complete} msg_preview={assistant_msg[:200]!r}")
+    print(f"[chat] session={req.session_id} q_count={q_count} max_q={max_q} is_complete={is_complete} stop_reason={response.stop_reason}")
 
-    return {
+    result = {
         "session_id": req.session_id,
-        "message": assistant_msg,
+        "message": assistant_text or "Your taste profile is ready.",
         "question_count": q_count,
         "max_questions": max_q,
         "is_complete": is_complete,
     }
+    if profile is not None:
+        result["profile"] = profile
+    return result
 
 
 def _max_questions(mode: str) -> int:

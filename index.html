@@ -768,7 +768,11 @@ async function sendChat(){
       onboarded=true;
       clearTimeout(nudgeTimer);
       hideNudge();
-      try{applyProfileToFeed(d.message);saveState();}catch(pe){console.warn('Profile parse error',pe);}
+      try{
+        if(d.profile) applyStructuredProfile(d.profile);
+        else applyProfileToFeed(d.message);
+        saveState();
+      }catch(pe){console.warn('Profile parse error',pe);}
       document.getElementById('chat-in').disabled=true;
       document.getElementById('chat-send').disabled=true;
       document.getElementById('cp-label').textContent='Profile ready ✓';
@@ -836,7 +840,27 @@ function disableIn(){document.getElementById('chat-in').disabled=true;document.g
 function chatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
 function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,90)+'px';}
 
-// ── PROFILE PARSER ─────────────────────────────────────────
+// ── STRUCTURED PROFILE (primary path — backend tool-call output) ──
+function applyStructuredProfile(profile){
+  const emojis=['🎵','🎶','🎸','🎤','🎧','🎺','🎻','🥁'];
+  const artists=(profile.artists||[]).slice(0,5).map((a,i)=>({n:a.name,d:a.reason,e:emojis[i],g:G[i],idx:i+1}));
+  const vibe=profile.vibe||'';
+  const genres=profile.genres||[];
+  const energy=profile.energy||'';
+  const context=profile.context||'';
+  const discovery=profile.discovery||'';
+  const regionalPref=profile.regional_pref||'';
+
+  profileData={vibe,genres,energy,context,discovery,regionalPref,artists};
+  buildAfterSections(profileData);
+
+  const parts=[];
+  if(vibe) parts.push(vibe);
+  if(genres.length) parts.push(genres.join(', '));
+  if(parts.length) AFTER.hero.sub=`Your taste profile is live · ${parts.join(' · ')}. Here's music we think you'll love.`;
+}
+
+// ── PROFILE PARSER (legacy fallback — regex over prose) ──────
 function applyProfileToFeed(text){
   const emojis=['🎵','🎶','🎸','🎤','🎧','🎺','🎻','🥁'];
   const artists=[];
